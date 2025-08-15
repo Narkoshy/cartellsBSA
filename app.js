@@ -1,4 +1,6 @@
-// Estat de l'app
+// ===============================
+// Estat de l'app + Persistència
+// ===============================
 const state = {
   running:false,
   ctx:null, src:null, analyser:null,
@@ -25,19 +27,33 @@ const state = {
   nightStart:"22:00",
   nightEnd:"07:00",
   _autoTimer:null,
-  _manualOverride:false,
+  _manualOverride:false,   // true si l'usuari ha sortit del mode automàtic
 
   // Estabilització/histeresi
   startedAt:0,
-  initialGraceMs:2000,   // arrencar en verd 2s
+  initialGraceMs:2000,     // arrencar en verd 2s
   lastStatus:'green',
-  hysteresis:1           // 1 dB d'histeresi per canviar de color
+  hysteresis:1             // 1 dB d'histeresi per canviar de color
 };
 
 // Colors sòlids per al traç del gauge (evita l'efecte "ambre" inicial del degradat)
 const COLORS = { green:'#22c55e', amber:'#f59e0b', red:'#ef4444' };
 
-// Referències UI
+// Claus de localStorage
+const LS = {
+  K: 'app.K',
+  EMA: 'app.emaAlpha',
+  GREEN: 'app.greenMax',
+  AMBER: 'app.amberMax',
+  TWEAKED: 'app.userTweaked',
+  MODE_MANUAL: 'app.mode.manual',          // 'day'|'night'
+  AUTO: 'autoMode',
+  NIGHT_S: 'nightStart',
+  NIGHT_E: 'nightEnd',
+  ADV_OPEN: 'advOpen'
+};
+
+// ----------------- Referències UI -----------------
 const els = {
   banner: document.getElementById('banner'),
   modeEmoji: document.getElementById('modeEmoji'),
@@ -68,6 +84,7 @@ const els = {
   statusLabel: document.getElementById('statusLabel'),
 };
 
+// ----------------- Utils UI -----------------
 function showBanner(type, msg){
   els.banner.className = 'banner show';
   els.banner.style.background = type==='error' ? 'rgba(239,68,68,.12)' : type==='warn' ? 'rgba(245,158,11,.12)' : 'rgba(34,197,94,.12)';
@@ -81,6 +98,87 @@ const legendText = {
   amber:  'Ambre: soroll moderat – pot interferir amb el descans o la concentració.',
   red:    'Vermell: soroll alt – risc clar de molèstia o estrès acústic.'
 };
+
+// ===============================
+// Persistència: càrrega/guardat
+// ===============================
+function clamp(n, a, b){ return Math.min(Math.max(n, a), b); }
+
+function loadPrefs(){
+  try{
+    const k  = Number(localStorage.getItem(LS.K));
+    const ea = Number(localStorage.getItem(LS.EMA));
+    const g  = Number(localStorage.getItem(LS.GREEN));
+    const a  = Number(localStorage.getItem(LS.AMBER));
+    const t  = localStorage.getItem(LS.TWEAKED);
+
+    if (Number.isFinite(k))  state.K = clamp(k, 30, 100);
+    if (Number.isFinite(ea)) state.emaAlpha = clamp(ea, 0.50, 0.97);
+    if (Number.isFinite(g))  state.greenMax = clamp(g, 10, 70);
+    if (Number.isFinite(a))  state.amberMax = clamp(a, 15, 80);
+    if (t !== null)          state.userTweakedThresholds = (t === '1');
+
+    // Programa dia/nit
+    const auto = localStorage.getItem(LS.AUTO);
+    const ns = localStorage.getItem(LS.NIGHT_S);
+    const ne = localStorage.getItem(LS.NIGHT_E);
+    if (auto !== null) state.autoMode = (auto === 'true');
+    if (ns) state.nightStart = ns;
+    if (ne) state.nightEnd = ne;
+
+    // Si NO és automàtic, recupera el mode manual que es va deixar
+    if (!state.autoMode){
+      const lastManual = localStorage.getItem(LS.MODE_MANUAL);
+      if (lastManual === 'day' || lastManual === 'night') {
+        state.mode = lastManual;
+      }
+    }
+  }catch{}
+}
+
+function savePrefs(){
+  try{
+    localStorage.setItem(LS.K, String(state.K));
+    localStorage.setItem(LS.EMA, String(state.emaAlpha));
+    localStorage.setItem(LS.GREEN, String(state.greenMax));
+    localStorage.setItem(LS.AMBER, String(state.amberMax));
+    localStorage.setItem(LS.TWEAKED, state.userTweakedThresholds ? '1' : '0');
+  }catch{}
+}
+
+function saveSchedule(){
+  try{
+    localStorage.setItem(LS.AUTO, String(state.autoMode));
+    localStorage.setItem(LS.NIGHT_S, state.nightStart);
+    localStorage.setItem(LS.NIGHT_E, state.nightEnd);
+  }catch{}
+}
+
+// ----------------- Sync UI <-> Estat -----------------
+function applyPrefsToUI(){
+  // sliders & labels
+  els.kSlider.value = state.K;
+  els.kVal.textContent = `+${state.K} dB`;
+
+  els.emaSlider.value = state.emaAlpha;
+  els.emaVal.textContent = state.emaAlpha.toFixed(2);
+
+  els.greenSlider.value = state.greenMax;
+  els.amberSlider.value = state.amberMax;
+  updateThresholdLabels();
+
+  // horaris
+  els.autoMode.checked = state.autoMode;
+  els.nightStart.value = state.nightStart;
+  els.nightEnd.value = state.nightEnd;
+
+  // obre/cierra “Ajustos avançats”
+  const adv = document.getElementById('advSettings');
+  if (adv){
+    adv.open = localStorage.getItem(LS.ADV_OPEN) === '1';
+    adv.addEventListener('toggle', ()=> localStorage.setItem(LS.ADV_OPEN, adv.open ? '1' : '0'));
+  }
+}
 
 // ---------- Mode i llindars ----------
 function setMode(mode){
@@ -96,6 +194,11 @@ function setMode(mode){
 
   // Color inicial del gauge en verd per evitar "ambre" visual al començar
   els.progress?.setAttribute('stroke', COLORS.green);
+
+  // si estem en mode manual, persistir-lo
+  if (!state.autoMode){
+    try{ localStorage.setItem(LS.MODE_MANUAL, mode); }catch{}
+  }
 }
 
 function updateThresholdLabels(){
@@ -105,24 +208,28 @@ function updateThresholdLabels(){
 
 // ---------- Sliders ----------
 els.kSlider.addEventListener('input', e=>{
-  state.K = parseFloat(e.target.value);
+  state.K = clamp(parseFloat(e.target.value), 30, 100);
   els.kVal.textContent = "+" + state.K + " dB";
+  savePrefs();
 });
 els.emaSlider.addEventListener('input', e=>{
-  state.emaAlpha = parseFloat(e.target.value);
+  state.emaAlpha = clamp(parseFloat(e.target.value), 0.50, 0.97);
   els.emaVal.textContent = state.emaAlpha.toFixed(2);
+  savePrefs();
 });
 els.greenSlider.addEventListener('input', e=>{
   state.userTweakedThresholds = true;
   state.greenMax = parseFloat(e.target.value);
   if(state.greenMax > state.amberMax-1){ state.greenMax = state.amberMax-1; e.target.value = state.greenMax; }
   updateThresholdLabels();
+  savePrefs();
 });
 els.amberSlider.addEventListener('input', e=>{
   state.userTweakedThresholds = true;
   state.amberMax = parseFloat(e.target.value);
   if(state.amberMax < state.greenMax+1){ state.amberMax = state.greenMax+1; e.target.value = state.amberMax; }
   updateThresholdLabels();
+  savePrefs();
 });
 
 // ---------- Programació Dia/Nit ----------
@@ -137,27 +244,6 @@ function isInNightRange(now = new Date(), startStr, endStr) {
   if (start === end) return false;
   if (start < end) return minutes >= start && minutes < end;
   return (minutes >= start) || (minutes < end); // creua mitjanit
-}
-function loadSchedule() {
-const adv = document.getElementById('advSettings');
-if (adv){
-  adv.open = localStorage.getItem('advOpen') === '1';
-  adv.addEventListener('toggle', ()=> localStorage.setItem('advOpen', adv.open ? '1' : '0'));
-}
-  const auto = localStorage.getItem('autoMode');
-  const ns = localStorage.getItem('nightStart');
-  const ne = localStorage.getItem('nightEnd');
-  if (auto !== null) state.autoMode = auto === 'true';
-  if (ns) state.nightStart = ns;
-  if (ne) state.nightEnd = ne;
-  els.autoMode.checked = state.autoMode;
-  els.nightStart.value = state.nightStart;
-  els.nightEnd.value = state.nightEnd;
-}
-function saveSchedule() {
-  localStorage.setItem('autoMode', String(state.autoMode));
-  localStorage.setItem('nightStart', state.nightStart);
-  localStorage.setItem('nightEnd', state.nightEnd);
 }
 function applyAutoModeTick() {
   if (!state.autoMode || state._manualOverride) return;
@@ -396,7 +482,19 @@ async function requestWakeLock(){
 }
 function releaseWakeLock(){ try{ state.wakeLock?.release(); }catch(e){} }
 
-// ---------- INIT ----------
-loadSchedule();
-applyAutoModeTick();
-scheduleAutoTimer();
+// ===============================
+// INIT
+// ===============================
+(function init(){
+  loadPrefs();              // carrega K/EMA/llindars + estat manual si escau
+  applyPrefsToUI();
+
+  // Aplica mode (auto o manual)
+  if (state.autoMode){
+    setMode('night');       // valor inicial; aplicarà el real al tick
+    applyAutoModeTick();
+  } else {
+    setMode(state.mode);    // recuperat de localStorage si existia
+  }
+  scheduleAutoTimer();
+})();
