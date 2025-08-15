@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Monitor acústic – Hospital</title>
+
+  <!-- Icona -->
+  <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%233aa4ff'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-size='34' fill='white' font-family='Arial,Helvetica,sans-serif'%3EdB%3C/text%3E%3C/svg%3E">
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b1220">
+  <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Monitor acústic">
+
+  <meta name="description" content="Webapp per monitoritzar el nivell de soroll (dB aproximats) amb mode dia/nit. No grava àudio."/>
+  <meta name="format-detection" content="telephone=no">
+
+  <!-- Estils principals -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <noscript>
+    Aquesta aplicació requereix JavaScript per funcionar (accés al micròfon i PWA).
+  </noscript>
+
+  <div class="app">
+    <header>
+      <h1>🏥 Monitor acústic</h1>
+      <div class="row" role="group" aria-label="Controls principals">
+        <div class="pill" aria-live="polite">
+          <span id="modeEmoji">🌙</span><strong id="modeText">Nit</strong>
+        </div>
+        <button id="toggleMode" class="secondary" title="Canviar dia/nit" type="button">Canviar mode</button>
+        <button id="startBtn" type="button">Iniciar micròfon</button>
+        <button id="stopBtn" class="secondary" type="button">Aturar</button>
+      </div>
+    </header>
+
+    <div id="banner" class="banner" role="status" aria-live="polite"></div>
+
+    <div class="grid">
+      <!-- Targeta del gauge -->
+      <section class="card" aria-labelledby="gaugeTitle">
+        <h2 id="gaugeTitle" class="sr-only">Nivell sonor actual</h2>
+
+        <div class="gaugeWrap" aria-label="Indicador de nivell sonor ponderat A">
+          <svg id="gauge" width="320" height="320" viewBox="0 0 200 200" role="img" aria-labelledby="dbText statusText">
+            <defs>
+              <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#22c55e"/>
+                <stop offset="50%" stop-color="#f59e0b"/>
+                <stop offset="100%" stop-color="#ef4444"/>
+              </linearGradient>
+            </defs>
+            <circle cx="100" cy="100" r="84" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="20"/>
+            <circle id="progress" cx="100" cy="100" r="84" fill="none" stroke="url(#grad)" stroke-width="20"
+                    stroke-dasharray="528" stroke-dashoffset="528" stroke-linecap="round"
+                    transform="rotate(-90 100 100)"/>
+            <text id="dbText" x="100" y="100" text-anchor="middle" dominant-baseline="central"
+                  font-size="36" font-weight="800" fill="white">-- dB</text>
+            <text id="statusText" x="100" y="130" text-anchor="middle" dominant-baseline="central"
+                  font-size="16" fill="#94a3b8">—</text>
+          </svg>
+        </div>
+
+        <div class="legend" aria-label="Llegenda de colors">
+          <div class="pill" title="Soroll baix — òptim per al descans i la comunicació">
+            <span class="dot dot-green" aria-hidden="true"></span> Verd
+          </div>
+          <div class="pill" title="Soroll moderat — pot interferir amb el descans o la concentració">
+            <span class="dot dot-amber" aria-hidden="true"></span> Ambre
+          </div>
+          <div class="pill" title="Soroll alt — risc de molèstia o estrès acústic">
+            <span class="dot dot-red" aria-hidden="true"></span> Vermell
+          </div>
+        </div>
+
+        <div class="note" aria-label="Què indica cada color" style="margin-top:12px">
+          <strong>Què indica cada color?</strong><br>
+          🟢 <em>Verd:</em> soroll baix — òptim per al descans i la comunicació.<br>
+          🟠 <em>Ambre:</em> soroll moderat — pot interferir amb el descans o la concentració.<br>
+          🔴 <em>Vermell:</em> soroll alt — risc de molèstia o estrès acústic.<br>
+          <span class="muted">Indicador tècnic orientatiu. No grava àudio.</span>
+        </div>
+
+        <div class="metric" aria-live="polite" style="margin-top:12px">
+          <div class="value" id="avgText">--</div><div class="unit">dB mitjana 5 min</div>
+        </div>
+        <div class="muted" id="peaksText">Pics últims 5 min: —</div>
+      </section>
+
+      <!-- Panell lateral (configuració) -->
+      <aside class="card" aria-labelledby="configTitle">
+        <h2 id="configTitle" class="sr-only">Configuració</h2>
+
+        <details id="advSettings" class="details-card">
+          <summary>⚙️ Ajustos avançats</summary>
+
+          <div class="kv" style="margin-top:10px">
+            <label for="kSlider">Calibratge (K): <span id="kVal">+60 dB</span></label>
+            <input id="kSlider" type="range" min="30" max="100" step="1" value="60" />
+          </div>
+
+          <div class="kv" style="margin-top:10px">
+            <label for="emaSlider">Suavitzat (EMA): <span id="emaVal">0.80</span></label>
+            <input id="emaSlider" type="range" min="0.50" max="0.97" step="0.01" value="0.80" />
+          </div>
+
+          <div class="kv" style="margin-top:10px">
+            <label for="greenSlider">Llindar Verd màx. <span id="greenVal">35 dB</span></label>
+            <input id="greenSlider" type="range" min="25" max="60" step="1" value="35" />
+          </div>
+
+          <div class="kv" style="margin-top:10px">
+            <label for="amberSlider">Llindar Ambre màx. <span id="amberVal">45 dB</span></label>
+            <input id="amberSlider" type="range" min="35" max="70" step="1" value="45" />
+          </div>
+
+          <div class="note" style="margin-top:12px">
+            <strong>Consell:</strong> calibra K amb un sonòmetre o una app de referència en soroll estable.
+          </div>
+        </details>
+
+        <hr style="margin:14px 0; border-color: rgba(255,255,255,.08)">
+
+        <div class="kv">
+          <label for="autoMode">Canvi automàtic dia/nit</label>
+          <input id="autoMode" type="checkbox" checked />
+        </div>
+
+        <div class="kv" style="margin-top:10px">
+          <label for="nightStart">Inici Nit</label>
+          <input id="nightStart" type="time" value="22:00" inputmode="numeric" />
+        </div>
+
+        <div class="kv" style="margin-top:10px">
+          <label for="nightEnd">Final Nit</label>
+          <input id="nightEnd" type="time" value="07:00" inputmode="numeric" />
+        </div>
+
+        <div class="note" style="margin-top:12px">
+          <strong>Horaris:</strong> quan l'hora actual estigui dins de <em>Nit</em>, el mode canviarà a 🌙. La resta del temps, ☀️.
+        </div>
+
+        <div class="note" style="margin-top:12px">
+          <strong>Privacitat:</strong> l’àudio no es guarda ni s’envia. Es calcula el nivell (RMS) en local i es descarten les mostres.
+        </div>
+
+        <div id="statusPill" class="statusPill status-green" style="margin-top:14px">
+          <span id="statusLabel">Verd</span>
+        </div>
+
+        <!-- Botó sota el status pill -->
+        <div style="margin-top:12px">
+          <a class="link-carteles" href="carteles.html" title="Obrir cartells i protocols">📋 Protocols i cartells</a>
+        </div>
+      </aside>
+    </div>
+
+    <footer>
+      <div>Mode quiosc.</div>
+      <div>v0.3 MVP</div>
+    </footer>
+  </div>
+
+  <!-- App JS -->
+  <script src="app.js"></script>
+
+  <!-- Ajust de compactació/escala perquè tot càpiga a la pantalla -->
+  <script>
+    (function(){
+      const app = document.querySelector('.app');
+      if(!app) return;
+
+      // Envolta amb .fit si no existeix (centra i crea àrea de càlcul)
+      let wrap = app.parentElement;
+      if (!wrap || !wrap.classList.contains('fit')) {
+        wrap = document.createElement('div');
+        wrap.className = 'fit';
+        app.parentNode.insertBefore(wrap, app);
+        wrap.appendChild(app);
+      }
+
+      function clearCompaction(){
+        document.body.classList.remove('compact','xcompact');
+      }
+      function needScale(rect, vw, vh){
+        return rect.width > vw || rect.height > vh;
+      }
+
+      function fit(){
+        app.style.transform = 'none';
+        clearCompaction();
+
+        const vw = wrap.clientWidth;
+        const vh = wrap.clientHeight;
+
+        let rect = app.getBoundingClientRect();
+
+        // 1) Compactació suau
+        if (needScale(rect, vw, vh)) {
+          document.body.classList.add('compact');
+          rect = app.getBoundingClientRect();
+        }
+        // 2) Compactació forta
+        if (needScale(rect, vw, vh)) {
+          document.body.classList.add('xcompact');
+          rect = app.getBoundingClientRect();
+        }
+        // 3) Escalat mínim (segona acció)
+        if (needScale(rect, vw, vh)) {
+          const s = Math.min(vw / rect.width, vh / rect.height, 1);
+          const safe = Math.max(0.5, s - 0.005); // petit marge anti-scroll
+          app.style.transform = `scale(${safe})`;
+        } else {
+          app.style.transform = 'none';
+        }
+      }
+
+      let raf;
+      function onResize(){ cancelAnimationFrame(raf); raf = requestAnimationFrame(fit); }
+
+      window.addEventListener('resize', onResize);
+      window.addEventListener('orientationchange', onResize);
+      document.addEventListener('DOMContentLoaded', fit);
+      window.addEventListener('load', fit);
+      setTimeout(fit, 200);
+      setTimeout(fit, 800);
+    })();
+  </script>
+
+  <!-- Recorda estat del desplegable -->
+  <script>
+    (function(){
+      const adv = document.getElementById('advSettings');
+      if (!adv) return;
+      adv.open = localStorage.getItem('advOpen') === '1';
+      adv.addEventListener('toggle', ()=> localStorage.setItem('advOpen', adv.open ? '1' : '0'));
+    })();
+  </script>
+
+  <!-- Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(err => console.error('SW error', err));
+      });
+    }
+  </script>
+</body>
+</html>
+ 

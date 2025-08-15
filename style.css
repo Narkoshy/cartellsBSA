@@ -1,0 +1,737 @@
+/* =========================================================
+   Variables y base (tal como tenías, sin romper nada)
+========================================================= */
+:root{
+  --bg:#0b1220;
+  --card:#111a2b;
+  --accent:#3aa4ff;
+  --text:#e9f1ff;
+  --muted:#94a3b8;
+  --green:#22c55e;
+  --amber:#f59e0b;
+  --red:#ef4444;
+
+  /* tamaños táctiles */
+  --tap-min:44px;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color:var(--text);
+  background:linear-gradient(180deg,#0b1220,#0d1628 40%,#0b1220);
+
+  /* Centrado robusto para tu página principal (medidor) */
+  display:grid;
+  place-items:center;
+  min-height:100svh;                 /* mejor que 100vh en móviles/iOS */
+  padding:clamp(16px, 2vw, 24px);
+  padding-left:calc(clamp(16px,2vw,24px) + env(safe-area-inset-left,0));
+  padding-right:calc(clamp(16px,2vw,24px) + env(safe-area-inset-right,0));
+  padding-top:calc(clamp(16px,2vw,24px) + env(safe-area-inset-top,0));
+  padding-bottom:calc(clamp(16px,2vw,24px) + env(safe-area-inset-bottom,0));
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* Permite activar scroll cuando lo necesites: <body class="allow-scroll"> */
+body.allow-scroll{ overflow:auto }
+
+/* Tarjeta contenedora */
+.app{
+  width:100%;
+  max-width:920px;
+  background:var(--card);
+  border-radius:20px;
+  padding:24px;
+  box-shadow:0 10px 40px rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.06);
+  margin-inline:auto;                /* asegura centrado horizontal */
+
+  /* útil para overlays/controles posicionados */
+  position:relative;
+}
+
+/* Si la altura es muy baja, alineamos arriba para evitar recortes */
+@media (max-height:640px){
+  body{ place-items:start center; }
+}
+
+header{display:flex; align-items:center; gap:16px; justify-content:space-between; margin-bottom:10px}
+header h1{font-size:20px; margin:0; letter-spacing:.2px}
+
+.row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+
+.pill{
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+  padding:8px 12px;
+  border-radius:999px;
+  display:inline-flex; align-items:center; gap:8px;
+  min-height:var(--tap-min);
+}
+
+button{
+  background:var(--accent);
+  color:#001428;
+  border:none;
+  padding:10px 14px;
+  border-radius:12px;
+  font-weight:700;
+  cursor:pointer;
+  box-shadow:0 6px 18px rgba(58,164,255,.3);
+  transition:transform .05s ease, box-shadow .2s ease;
+  font-size:14px;
+  min-height:var(--tap-min);
+  touch-action:manipulation;
+}
+button:hover{transform:translateY(-1px)}
+button:active{transform:translateY(0); box-shadow:0 2px 10px rgba(58,164,255,.25)}
+button.secondary{
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+  box-shadow:none;
+  border:1px solid rgba(255,255,255,.1)
+}
+button:focus-visible{
+  outline:2px solid #fff;
+  outline-offset:2px;
+}
+
+/* Layout de dos columnas adaptable */
+.grid{display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; margin-top:16px}
+@media (max-width:900px){ .grid{grid-template-columns:1fr} }
+
+.card{
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:16px;
+  padding:16px
+}
+
+/* Gauge responsivo */
+.gaugeWrap{display:flex; align-items:center; justify-content:center; padding:8px 0 2px}
+.gaugeWrap svg{max-width:100%; height:auto; display:block}
+
+.legend{display:flex; gap:12px; flex-wrap:wrap; font-size:13px; color:var(--muted)}
+.legend .dot{width:10px;height:10px;border-radius:50%}
+.dot-green{background:var(--green)} .dot-amber{background:var(--amber)} .dot-red{background:var(--red)}
+
+/* Caja de leyenda/nota explicativa */
+.legend-note{
+  margin-top:12px;
+  background:rgba(255,255,255,.04);
+  border:1px dashed rgba(255,255,255,.1);
+  padding:12px;
+  border-radius:12px;
+  font-size:13px;
+  color:var(--text);
+}
+
+.metric{display:flex; align-items:baseline; gap:10px; margin-top:6px}
+.metric .value{font-size:42px; font-weight:800}
+.metric .unit{font-size:18px; color:var(--muted)}
+
+.muted{color:var(--muted); font-size:13px}
+
+label{font-size:13px; color:var(--muted)}
+
+.kv{display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center}
+
+/* Sliders táctiles y accesibles */
+input[type="range"]{width:100%; height:var(--tap-min); -webkit-appearance:none; appearance:none; background:transparent}
+input[type="range"]::-webkit-slider-runnable-track{ height:6px; background:rgba(255,255,255,.2); border-radius:8px }
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none;
+  width:28px; height:28px; border-radius:50%;
+  background:#fff; border:2px solid rgba(0,0,0,.15); margin-top:-11px
+}
+input[type="range"]::-moz-range-track{ height:6px; background:rgba(255,255,255,.2); border-radius:8px }
+input[type="range"]::-moz-range-thumb{
+  width:28px; height:28px; border-radius:50%;
+  background:#fff; border:2px solid rgba(0,0,0,.15)
+}
+
+/* Inputs de hora */
+input[type="time"]{
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:8px 10px;
+  height:var(--tap-min);
+  font-size:14px;
+}
+input[type="time"]:focus-visible{ outline:2px solid #fff; outline-offset:2px }
+
+/* Estado/semáforo */
+.statusPill{
+  padding:8px 12px;
+  border-radius:999px;
+  font-weight:700;
+  display:inline-flex; align-items:center; gap:8px;
+  min-height:var(--tap-min);
+  border:1px solid transparent;
+}
+.status-green{background:rgba(34,197,94,.15); color:#86efac; border-color:rgba(34,197,94,.35)}
+.status-amber{background:rgba(245,158,11,.15); color:#fcd34d; border-color:rgba(245,158,11,.35)}
+.status-red{background:rgba(239,68,68,.15); color:#fca5a5; border-color:rgba(239,68,68,.35)}
+
+footer{margin-top:10px; display:flex; justify-content:space-between; color:var(--muted); font-size:12px}
+
+.note{
+  background:rgba(255,255,255,.04);
+  border:1px dashed rgba(255,255,255,.1);
+  padding:12px;
+  border-radius:12px;
+  font-size:13px
+}
+
+.banner{
+  margin-top:10px; padding:10px 12px; border-radius:12px; font-size:13px;
+  border:1px solid rgba(255,255,255,.15);
+  display:none
+}
+.banner.show{display:block}
+
+/* Solo lectores de pantalla */
+.sr-only,
+.visually-hidden{
+  position:absolute !important;
+  width:1px; height:1px;
+  padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+
+/* Respeta preferencia del usuario sobre animaciones */
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important; transition:none !important}
+}
+
+/* Alto contraste: foco más visible */
+@media (prefers-contrast: more){
+  button:focus-visible, input:focus-visible{
+    outline:3px solid #fff !important; outline-offset:3px !important;
+  }
+}
+
+/* =========================================================
+   Botón/enlace a "Protocols i cartells" (index.html)
+========================================================= */
+.app .link-carteles{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  text-decoration:none;
+
+  background:var(--accent, #3aa4ff);
+  color:#001428;
+  font-weight:700;
+
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  padding:10px 14px;
+  min-height:var(--tap-min, 44px);
+
+  box-shadow:0 6px 18px rgba(58,164,255,.30);
+  transition:transform .05s ease, box-shadow .2s ease, filter .15s ease;
+}
+.app .link-carteles:hover{ transform:translateY(-1px); filter:brightness(1.02) }
+.app .link-carteles:active{ transform:translateY(0); box-shadow:0 2px 10px rgba(58,164,255,.25) }
+.app .link-carteles:focus-visible{ outline:2px solid #fff; outline-offset:2px }
+
+body.compact .link-carteles{
+  padding:8px 12px;
+  min-height:38px;
+  font-size:13px;
+  border-radius:10px;
+}
+body.xcompact .link-carteles{
+  padding:7px 10px;
+  min-height:34px;
+  font-size:12px;
+  border-radius:10px;
+}
+
+/* Variante secundaria opcional */
+.app .link-carteles.secondary{
+  background:rgba(255,255,255,.06);
+  color:var(--text, #e9f1ff);
+  box-shadow:none;
+  border:1px solid rgba(255,255,255,.12);
+}
+
+/* =========================================================
+   Carteles / Carrusel (Swiper)
+   –– Sección añadida, NO rompe el medidor
+========================================================= */
+
+/* Contenedor visual del carrusel */
+.carousel{
+  position:relative;
+  margin-top:10px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:16px;
+  padding:12px;
+
+  /* seguridad: recorta clones desbordados si Swiper los muestra */
+  overflow:hidden;
+}
+
+/* Swiper (por defecto usa overflow:hidden) */
+.swiper{
+  width:100%;
+  overflow:hidden !important; /* recortamos al marco del carrusel */
+  position:relative;
+  z-index:1;
+}
+.swiper-wrapper{ align-items:stretch }
+.swiper-slide{
+  display:grid;
+  grid-template-rows:auto min-content;
+  padding:6px;
+  min-height:clamp(260px, 50vh, 620px);
+  overflow:hidden; /* evita que se “cuele” contenido lateral */
+}
+
+/* Marco de cada elemento */
+.frame{
+  background:rgba(255,255,255,.02);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:12px;
+  overflow:hidden;
+  display:grid; grid-template-rows:auto min-content;
+  place-items:center;
+  min-height:clamp(240px, 46vh, 560px);
+}
+
+/* Zoom */
+.swiper-zoom-container{
+  width:100%;
+  height:clamp(220px, 40vh, 520px);
+}
+.swiper-zoom-container img {
+  max-width: 100%;
+  max-height: 100vh; /* que nunca supere la altura visible */
+  object-fit: contain; /* mantiene proporción */
+  margin: auto;
+  display: block;
+}
+/* PDF como tarjeta */
+.pdf-card{
+  display:grid; place-items:center; width:100%;
+  height:clamp(220px, 40vh, 520px);
+  background:rgba(0,0,0,.25);
+  border-radius:8px;
+}
+.pdf-title{ margin-top:8px; font-size:14px; color:var(--muted) }
+
+/* Pie de slide */
+.caption{
+  width:100%;
+  display:flex; justify-content:space-between; align-items:center;
+  gap:12px; padding:12px;
+}
+.caption h3{ margin:0; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70vw }
+
+/* Botón/enlace genérico (usado en carteles) */
+.link-btn{
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  padding:10px 14px;
+  text-decoration:none;
+  font-weight:700;
+  font-size:14px;
+  white-space:nowrap;
+}
+
+/* Selector de servicio (carteles) */
+.service-select{
+  appearance:auto;
+  background:rgba(255,255,255,.10);
+  color:var(--text);
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:12px;
+  padding:8px 12px;
+  min-height:var(--tap-min);
+  font-weight:700;
+}
+
+/* Flechas/paginación – visibilidad y clic */
+.swiper-button-prev, .swiper-button-next{
+  width:42px; height:42px; border-radius:999px;
+  background:rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.25);
+  color:#fff;
+  backdrop-filter:blur(2px);
+  z-index:5;
+}
+.swiper-button-prev::after, .swiper-button-next::after{ font-size:18px; font-weight:700 }
+.swiper-button-prev{ left:10px }
+.swiper-button-next{ right:10px }
+
+.swiper .swiper-pagination{ z-index:6 }
+.swiper-pagination-bullet{
+  background:rgba(255,255,255,.25); opacity:1;
+  border:1px solid rgba(255,255,255,.35);
+}
+.swiper-pagination-bullet-active{ background:var(--accent); border-color:transparent }
+
+/* Vacío */
+.empty{ display:grid; place-items:center; padding:32px; color:var(--muted); text-align:center }
+
+/* Nota de retorno + Toast (carteles) */
+.return-note{
+  margin-top:12px; font-size:13px; color:var(--muted);
+  display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+}
+.countdown{ font-variant-numeric: tabular-nums }
+
+.toast{
+  position:fixed;
+  inset:auto 16px 16px auto;
+  background:rgba(0,0,0,.6); color:white;
+  padding:10px 12px; border-radius:10px;
+  border:1px solid rgba(255,255,255,.12);
+  font-size:13px; display:none;
+  z-index: 10000;
+}
+.toast.show{ display:block }
+
+/* Altura baja: compacta ligeramente el carrusel */
+@media (max-height:640px){
+  .swiper-zoom-container{ height:36vh }
+  .caption h3{ font-size:14px }
+}
+
+/* =========================================================
+   OVERRIDES SOLO para carteles.html (imagen SIEMPRE entera)
+   Se activan cuando .app contiene un .carousel
+========================================================= */
+
+/* El body deja de centrar y quita padding si hay carrusel en la página */
+body:has(.carousel){
+  place-items: stretch;
+  padding: 0;
+}
+
+/* La tarjeta principal ocupa toda la ventana */
+.app:has(.carousel){
+  height: 100vh;
+  max-width: 100vw;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto; /* header / carrusel / nota */
+}
+
+/* Header compacto con fondo translúcido */
+.app:has(.carousel) header.header{
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(0,0,0,.25);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  backdrop-filter: blur(4px);
+}
+.app:has(.carousel) .hdr-left h1{
+  margin:0; font-size: clamp(16px, 2.4vw, 22px);
+}
+.app:has(.carousel) .service-select{
+  font-size: clamp(14px, 1.6vw, 16px);
+  min-height: 48px;
+  padding: 10px 14px;
+}
+.app:has(.carousel) .link-btn{
+  font-size: clamp(14px, 1.6vw, 16px);
+  padding: 10px 16px;
+}
+
+/* Carrusel ocupa todo el espacio intermedio */
+.app:has(.carousel) .carousel{
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+/* --- CLAVE PARA VER LA IMAGEN ENTERA (sin overlays) --- */
+/* La slide tiene un marco que reparte: 1) imagen (1fr)  2) caption (auto) */
+.app:has(.carousel) .swiper,
+.app:has(.carousel) .swiper-wrapper,
+.app:has(.carousel) .swiper-slide{
+  height: 100%;
+}
+.app:has(.carousel) .swiper-slide{
+  padding: 0;
+}
+.app:has(.carousel) .frame{
+  height: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto;   /* imagen arriba (flexible), caption abajo (auto) */
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  /* Reservamos hueco para los puntos (paginación) para que no tapen la imagen */
+  padding-bottom: 22px;
+}
+
+/* El contenedor de zoom ocupa TODO el alto disponible de la fila 1fr */
+.app:has(.carousel) .swiper-zoom-container{
+  height: 100%;
+}
+.app:has(.carousel) .swiper-zoom-container img{
+  object-fit: contain;  /* imagen siempre completa */
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,.25);
+}
+
+/* Caption ya NO es overlay; queda fuera de la imagen */
+.app:has(.carousel) .caption{
+  position: static;
+  padding: 10px 12px;
+  background: transparent;
+}
+
+/* Paginación y flechas no tapan la imagen (dejamos hueco con padding-bottom en .frame) */
+.app:has(.carousel) .swiper .swiper-pagination{ bottom: 6px !important }
+
+/* Controles un poco más grandes, sin exagerar */
+.app:has(.carousel) .swiper-button-prev,
+.app:has(.carousel) .swiper-button-next{
+  width:48px; height:48px; border-radius:999px;
+  background:rgba(0,0,0,.45);
+  border:1px solid rgba(255,255,255,.35);
+  box-shadow: 0 8px 20px rgba(0,0,0,.25);
+}
+.app:has(.carousel) .swiper-button-prev::after,
+.app:has(.carousel) .swiper-button-next::after{
+  font-size:20px; font-weight:700;
+}
+.app:has(.carousel) .swiper-button-prev{ left:12px }
+.app:has(.carousel) .swiper-button-next{ right:12px }
+
+/* Nota inferior compacta */
+.app:has(.carousel) .return-note{
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(0,0,0,.25);
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+/* En ventanas muy bajitas, seguimos asegurando que la imagen quepa entera */
+@media (max-height: 680px){
+  .app:has(.carousel) .frame{ padding-bottom: 20px; }
+  .app:has(.carousel) .hdr-left h1{ font-size: 16px; }
+}
+/* ===== CARTELes (sin :has) — PNG SIEMPRE ENTERO en pantalla ===== */
+
+/* Anula el grid centrado global sólo en carteles */
+body.carteles{
+  display:block;        /* en tu base el body era display:grid */
+  min-height:100dvh;
+  padding:0;
+  /* no centramos nada en body aquí */
+}
+
+/* La tarjeta ocupa toda la ventana y crea 3 filas: header / carrusel / nota */
+body.carteles .app{
+  height:100dvh;
+  max-width:100vw;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:var(--card);
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+}
+
+/* Header compacto arriba */
+body.carteles header.header{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:12px;
+  padding:8px 12px;
+  background:rgba(0,0,0,.25);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(4px);
+}
+body.carteles .hdr-left h1{ margin:0; font-size: clamp(16px, 2.4vw, 22px) }
+body.carteles .service-select{ font-size: clamp(14px, 1.6vw, 16px); min-height:48px; padding:10px 14px }
+body.carteles .link-btn{ font-size: clamp(14px, 1.6vw, 16px); padding:10px 16px }
+
+/* El contenedor del carrusel debe ocupar toda la fila central */
+body.carteles .carousel{
+  height:100%;
+  margin:0;
+  padding:0;
+  background:transparent;
+  border:0;
+  border-radius:0;
+}
+
+/* Cadena de alturas completas hasta la imagen */
+body.carteles .swiper,
+body.carteles .swiper-wrapper,
+body.carteles .swiper-slide{ height:100% }
+
+body.carteles .swiper-slide{
+  padding:0;
+  overflow:hidden; /* que no se cuele contenido vecino */
+}
+
+/* Marco de la slide: 1fr (imagen) + auto (caption) y hueco para la paginación */
+body.carteles .frame{
+  height:100%;
+  display:grid;
+  grid-template-rows:1fr auto;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  padding-bottom:22px; /* deja hueco a los dots para no tapar imagen */
+}
+
+/* Zona de zoom a tope */
+body.carteles .swiper-zoom-container{ height:100% !important }
+body.carteles .swiper-zoom-container img{
+  width:100%;
+  height:100%;
+  object-fit:contain;      /* ← la imagen SIEMPRE completa */
+  background:rgba(0,0,0,.25);
+  display:block;
+}
+
+/* Caption fuera de la imagen */
+body.carteles .caption{
+  position:static;
+  padding:10px 12px;
+  background:transparent;
+}
+body.carteles .swiper .swiper-pagination{ bottom:6px !important }
+
+/* Controles un poco más grandes */
+body.carteles .swiper-button-prev,
+body.carteles .swiper-button-next{
+  width:48px; height:48px; border-radius:999px;
+  background:rgba(0,0,0,.45);
+  border:1px solid rgba(255,255,255,.35);
+  box-shadow:0 8px 20px rgba(0,0,0,.25);
+}
+body.carteles .swiper-button-prev::after,
+body.carteles .swiper-button-next::after{ font-size:20px; font-weight:700 }
+body.carteles .swiper-button-prev{ left:12px }
+body.carteles .swiper-button-next{ right:12px }
+
+/* Nota inferior fija */
+body.carteles .return-note{
+  margin:0;
+  padding:8px 12px;
+  background:rgba(0,0,0,.25);
+  border-top:1px solid rgba(255,255,255,.06);
+}
+
+/* Ventanas bajitas: seguimos priorizando que quepa la imagen */
+@media (max-height:680px){
+  body.carteles .frame{ padding-bottom:20px }
+  body.carteles .hdr-left h1{ font-size:16px }
+}
+/* ===== FIX CARTELes: imagen completa + botón "Obrir" visible ===== */
+/* Actívalo añadiendo class="carteles" al <body> de carteles.html */
+body.carteles{
+  display:block;        /* tu body base era grid centrado; aquí lo anulamos */
+  min-height:100dvh;
+  padding:0;
+}
+
+/* La tarjeta ocupa toda la pantalla y crea 3 filas (header / carrusel / nota) */
+body.carteles .app{
+  height:100dvh;
+  max-width:100vw;
+  margin:0; padding:0; border:0; border-radius:0;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+}
+
+/* Carrusel a toda la fila central */
+body.carteles .carousel{
+  height:100%;
+  margin:0; padding:0; background:transparent; border:0; border-radius:0;
+}
+
+/* Cadena de alturas completas */
+body.carteles .swiper,
+body.carteles .swiper-wrapper,
+body.carteles .swiper-slide{ height:100% }
+
+/* CLAVE: usar flex + min-height:0 para que la zona de imagen pueda encogerse */
+body.carteles .swiper-slide{
+  display:flex;          /* en vez de grid aquí */
+  overflow:hidden;
+}
+body.carteles .frame{
+  flex:1 1 auto;
+  min-height:0;          /* <- permite que la imagen se ajuste sin empujar el caption */
+  display:flex;
+  flex-direction:column; /* 1) imagen (flex)  2) caption (auto) */
+  background:transparent; border:0; border-radius:0;
+  padding:0 0 24px 0;    /* hueco para los dots de paginación */
+}
+
+/* La zona de zoom ocupa el espacio flexible */
+body.carteles .swiper-zoom-container{
+  flex:1 1 auto;
+  min-height:0;          /* <- importantísimo */
+}
+body.carteles .swiper-zoom-container img{
+  width:100%;
+  height:100%;
+  object-fit:contain;    /* imagen completa, sin recorte */
+  background:rgba(0,0,0,.25);
+  display:block;
+}
+
+/* Caption siempre visible (no overlay) */
+body.carteles .caption{
+  flex:0 0 auto;
+  padding:10px 12px;
+  background:transparent;
+}
+
+/* Puntos y flechas no tapan el caption */
+body.carteles .swiper .swiper-pagination{ bottom:8px !important; z-index:6 }
+body.carteles .swiper-button-prev,
+body.carteles .swiper-button-next{
+  width:44px; height:44px; border-radius:999px;
+  background:rgba(0,0,0,.45);
+  border:1px solid rgba(255,255,255,.35);
+  box-shadow:0 8px 20px rgba(0,0,0,.25);
+  z-index:7;
+}
+body.carteles .swiper-button-prev::after,
+body.carteles .swiper-button-next::after{ font-size:18px; font-weight:700 }
+
+/* Header y nota (compactos) */
+body.carteles header.header{
+  display:grid; grid-template-columns:auto 1fr auto; align-items:center;
+  gap:12px; padding:8px 12px;
+  background:rgba(0,0,0,.25); border-bottom:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(4px);
+}
+body.carteles .return-note{
+  margin:0; padding:8px 12px;
+  background:rgba(0,0,0,.25); border-top:1px solid rgba(255,255,255,.06);
+}

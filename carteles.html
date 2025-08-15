@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cartells i protocols – Hospital</title>
+
+  <meta name="description" content="Selecció visual de cartells i protocols per servei i tipus. Carrusel tàctil amb filtres."/>
+
+  <!-- Estils globals -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Swiper CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/swiper@11/swiper-bundle.min.css"/>
+
+  <!-- Estils locals mínims (aseguran visibilidad de UI aunque style.css cambie) -->
+  <style>
+    :root{ --text:#e8edf3; --muted:#9aa3ad; --accent:#4f8cff; --tap-min:44px }
+    body{ opacity:0; transition:opacity .3s ease }
+    body.ready{ opacity:1 }
+    body.fading{ opacity:0 }
+    .app{ overflow:visible; container-type:inline-size; container-name:appsize }
+
+    header.header{
+      display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px; margin-bottom:8px;
+    }
+    .hdr-left h1{ margin:0; color:var(--text) }
+    .hdr-center{ justify-self:center; display:flex; align-items:center; gap:12px; flex-wrap:wrap }
+    .hdr-right{ justify-self:end }
+
+    .service-select,
+    .type-select{
+      background:rgba(255,255,255,.08);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.25);
+      border-radius:12px;
+      padding:8px 12px;
+      min-height:var(--tap-min);
+      font-weight:700;
+      appearance:auto;
+    }
+    .link-btn{
+      background:rgba(255,255,255,.08);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.25);
+      border-radius:12px;
+      padding:10px 14px;
+      text-decoration:none;
+      font-weight:700; font-size:14px;
+      white-space:nowrap;
+    }
+
+    .carousel{
+      position:relative; margin-top:10px;
+      background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
+      border-radius:16px; padding:12px;
+    }
+    .swiper{ width:100%; overflow:visible; position:relative; z-index:1 }
+    .swiper-wrapper{ align-items:stretch }
+    .swiper-slide{ display:grid; grid-template-rows:auto min-content; padding:6px; min-height:clamp(260px, 50vh, 620px) }
+
+    .frame{
+      background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.06);
+      border-radius:12px; overflow:hidden;
+      display:grid; grid-template-rows:auto min-content;
+      place-items:center; min-height:clamp(240px, 46vh, 560px);
+    }
+    .swiper-zoom-container{ width:100%; height:clamp(220px, 40vh, 520px) }
+    .swiper-zoom-container img{ width:100%; height:100%; object-fit:contain; background:rgba(0,0,0,.25); display:block }
+
+    .pdf-card{ display:grid; place-items:center; width:100%; height:clamp(220px,40vh,520px); background:rgba(0,0,0,.25); border-radius:8px }
+    .pdf-title{ margin-top:8px; font-size:14px; color:var(--muted) }
+
+    .caption{ display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px; width:100% }
+    .caption h3{ margin:0; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70vw; color:var(--text) }
+
+    .swiper-button-prev, .swiper-button-next{
+      width:42px; height:42px; border-radius:999px; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.25);
+      color:#fff; backdrop-filter:blur(2px); z-index:5;
+    }
+    .swiper-button-prev::after, .swiper-button-next::after{ font-size:18px; font-weight:700 }
+    .swiper-button-prev{ left:10px } .swiper-button-next{ right:10px }
+
+    .swiper-pagination-bullet{ background:rgba(255,255,255,.35); opacity:1; border:1px solid rgba(255,255,255,.45) }
+    .swiper-pagination-bullet-active{ background:var(--accent); border-color:transparent }
+
+    .empty{ display:grid; place-items:center; padding:32px; color:var(--muted); text-align:center }
+    .return-note{ margin-top:12px; font-size:13px; color:var(--muted); display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap }
+    .toast{ position:fixed; inset:auto 16px 16px auto; background:rgba(0,0,0,.6); color:white; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.12); font-size:13px; display:none }
+    .toast.show{ display:block }
+
+    @container appsize (max-height:640px){
+      .swiper-zoom-container{ height:36vh }
+      .caption h3{ font-size:14px }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="hdr-left"><h1>📋 Cartells i protocols</h1></div>
+
+      <div class="hdr-center">
+        <label for="serviceSelect" class="visually-hidden">Filtra per servei</label>
+        <select id="serviceSelect" class="service-select" aria-label="Filtra per servei">
+          <option value="tots">Tots els serveis</option>
+          <option value="hospitalitzacio">Hospitalització</option>
+          <option value="urgencies">Urgències</option>
+          <option value="area-quirurgica">Àrea Quirúrgica</option>
+          <option value="consultes-externes">Consultes Externes</option>
+        </select>
+
+        <label for="typeSelect" class="visually-hidden">Filtra per tipus</label>
+        <select id="typeSelect" class="type-select" aria-label="Filtra per tipus">
+          <option value="tots">Tots els tipus</option>
+          <option value="cartell">Cartells</option>
+          <option value="protocol">Protocols</option>
+        </select>
+      </div>
+
+      <div class="hdr-right">
+        <a class="link-btn" href="index.html" id="backBtn" title="Torna al monitor" rel="noopener noreferrer">← Torna al monitor</a>
+      </div>
+    </header>
+
+    <div class="carousel" aria-roledescription="carrusel" aria-label="Cartells disponibles">
+      <div class="swiper" id="swiper">
+        <div class="swiper-wrapper" id="swiperWrapper"></div>
+        <div class="swiper-button-prev" id="btnPrev" aria-label="Anterior"></div>
+        <div class="swiper-button-next" id="btnNext" aria-label="Següent"></div>
+        <div class="swiper-pagination" id="dots" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div class="return-note">
+      <span>Desplaça a esquerra/dreta, usa les fletxes del teclat o els botons.</span>
+      <span id="cdWrap">Tornada automàtica al monitor en <strong class="countdown" id="countdown">05:00</strong>.</span>
+    </div>
+
+    <div class="toast" id="toast">Tornant al monitor…</div>
+  </div>
+
+  <!-- Supabase JS (CDN) -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <!-- Swiper JS -->
+  <script src="https://unpkg.com/swiper@11/swiper-bundle.min.js"></script>
+
+  <script>
+  // ================================
+  // Config Supabase
+  // ================================
+  const SUPABASE_URL = "https://wnkgzpgagprncbtqnzrw.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indua2d6cGdhZ3BybmNidHFuenJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjQyNTQsImV4cCI6MjA3MDc0MDI1NH0.sXkV7N9Y2nDOTA3tZpWkAhs2SCGriXJWyieglxxFIRY";
+  const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+  // Mapes: valor del select → etiqueta humana
+  const SERVICE_LABEL = {
+    'hospitalitzacio': 'Hospitalització',
+    'urgencies': 'Urgències',
+    'area-quirurgica': 'Àrea Quirúrgica',
+    'consultes-externes': 'Consultes Externes'
+  };
+
+  // ---------- Elements ----------
+  const wrapper       = document.getElementById('swiperWrapper');
+  const btnPrevEl     = document.getElementById('btnPrev');
+  const btnNextEl     = document.getElementById('btnNext');
+  const dotsEl        = document.getElementById('dots');
+  const toastEl       = document.getElementById('toast');
+  const COUNTDOWN_EL  = document.getElementById('countdown');
+  const serviceSelect = document.getElementById('serviceSelect');
+  const typeSelect    = document.getElementById('typeSelect');
+
+  // ---------- Swiper ----------
+  let swiper = null;
+  function initSwiper(slideCount){
+    if (swiper) { try { swiper.destroy(true, true); } catch {} swiper = null; }
+    btnPrevEl.style.display = '';
+    btnNextEl.style.display = '';
+    dotsEl.style.display    = (slideCount > 1) ? '' : 'none';
+    swiper = new Swiper('#swiper', {
+      loop: (slideCount > 1),
+      allowTouchMove: true,
+      speed: 350,
+      centeredSlides: true,
+      slidesPerView: 1,
+      keyboard: { enabled: true },
+      navigation: { nextEl: '#btnNext', prevEl: '#btnPrev' },
+      pagination: (slideCount > 1) ? { el: '#dots', clickable: true } : { el: '#dots', clickable: false },
+      zoom: { enabled: true, maxRatio: 3 },
+      on: { slideChange: resetIdle, touchStart: resetIdle }
+    });
+  }
+
+  // Pinta cada slide (usa thumb si existe)
+  function makeSlide(model){
+    // model: { kind, url:file_url, thumb:thumb_url|null, title, mime }
+    const slide = document.createElement('div');
+    slide.className = 'swiper-slide';
+    slide.innerHTML = `<div class="frame"></div>`;
+    const frame = slide.firstElementChild;
+
+    const displayUrl = model.thumb || (model.kind === 'cartell' ? model.url : null);
+
+    if (displayUrl){
+      const zoom = document.createElement('div');
+      zoom.className = 'swiper-zoom-container';
+      const img = document.createElement('img');
+      img.alt = model.title || '';
+      img.src = displayUrl;
+      zoom.appendChild(img);
+      frame.appendChild(zoom);
+    } else {
+      const box = document.createElement('div');
+      box.className = 'pdf-card';
+      box.innerHTML = `<div style="font-size:42px">📄</div><div class="pdf-title">${model.title || 'Document'}</div>`;
+      frame.appendChild(box);
+    }
+
+    const cap = document.createElement('div');
+    cap.className = 'caption';
+    cap.innerHTML = `<h3 title="${model.title || ''}">${model.title || ''}</h3>
+                     <div class="actions"><a class="link-btn" href="${model.url}" target="_blank" rel="noopener noreferrer">Obrir</a></div>`;
+    frame.appendChild(cap);
+
+    return slide;
+  }
+
+  function cleanupObjectURLs(){
+    wrapper.querySelectorAll('img').forEach(img=>{
+      if (img.src.startsWith('blob:')) { try { URL.revokeObjectURL(img.src); } catch {} }
+    });
+    wrapper.querySelectorAll('.actions a').forEach(a=>{
+      if (a.href.startsWith('blob:')) { try { URL.revokeObjectURL(a.href); } catch {} }
+    });
+  }
+  window.addEventListener('beforeunload', cleanupObjectURLs);
+
+  // ---------- Consulta a Supabase (filtrada en servidor) ----------
+  async function fetchFromSupabase(svcCode, kindCode){
+    if (!supabase) return [];
+    let q = supabase
+      .from('documents')
+      .select('id,title,service,kind,mime,file_url,thumb_url,published,order_index,updated_at')
+      .eq('published', true);
+
+    // Filtro de servicio
+    if (svcCode !== 'tots') {
+      const human = SERVICE_LABEL[svcCode] || svcCode;
+      // tolerante con acentos y variantes
+      q = q.or(`service.ilike.%${human}%,service.ilike.%${svcCode}%`);
+    }
+
+    // Filtro de tipus
+    if (kindCode !== 'tots') {
+      // Si la columna kind está bien poblada, filtrará por ahí;
+      // si no, añadimos heurística por mime en cliente (ver más abajo).
+      q = q.eq('kind', kindCode);
+    }
+
+    q = q.order('order_index', { ascending: true, nullsFirst: true })
+         .order('updated_at', { ascending: false });
+
+    const { data, error } = await q;
+    if (error){ console.error('[Supabase] error:', error); return []; }
+
+    // Map a modelo de UI y normaliza kind si falta
+    return (data || []).map(row => {
+      const fromMime = (row.mime || '').startsWith('image/') ? 'cartell'
+                      : (row.mime === 'application/pdf') ? 'protocol'
+                      : null;
+      const kind = row.kind || fromMime || 'cartell';
+      return {
+        kind,
+        url: row.file_url,
+        thumb: row.thumb_url || null,
+        title: row.title || 'Document',
+        mime: row.mime || ''
+      };
+    });
+  }
+
+  // ---------- Construcción UI ----------
+  async function buildSlides(){
+    cleanupObjectURLs();
+    wrapper.innerHTML = '';
+
+    const svc  = serviceSelect.value;
+    const kind = typeSelect.value;
+
+    let slides = await fetchFromSupabase(svc, kind);
+
+    // Heurística adicional por MIME si el filtro es per tipus y la DB no tiene 'kind'
+    if (kind !== 'tots') {
+      slides = slides.filter(s => {
+        if (kind === 'cartell') return s.kind === 'cartell' || (s.mime || '').startsWith('image/');
+        if (kind === 'protocol') return s.kind === 'protocol' || s.mime === 'application/pdf';
+        return true;
+      });
+    }
+
+    if (!slides || slides.length === 0){
+      const slide = document.createElement('div');
+      slide.className = 'swiper-slide';
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      const svcLabel = (svc==='tots' ? 'Tots els serveis' : (SERVICE_LABEL[svc]||'Servei'));
+      const kindLabel = (kind==='tots' ? '' : (kind==='cartell' ? ' · Cartells' : ' · Protocols'));
+      empty.textContent = `Cap element per a “${svcLabel}${kindLabel}”.`;
+      slide.appendChild(empty);
+      wrapper.appendChild(slide);
+      initSwiper(1);
+      return;
+    }
+
+    slides.forEach(s => wrapper.appendChild(makeSlide(s)));
+    initSwiper(slides.length);
+  }
+
+  // ---------- Auto-retorn al monitor ----------
+  const IDLE_MS = 5*60*1000;
+  let idleTimer = null, tickTimer = null, deadline = Date.now() + IDLE_MS;
+
+  function fmt(ms){
+    const s=Math.max(0,Math.round(ms/1000));
+    const m=String(Math.floor(s/60)).padStart(2,'0');
+    const r=String(s%60).padStart(2,'0');
+    return `${m}:${r}`;
+  }
+  function updateCountdown(){
+    const left = deadline - Date.now();
+    COUNTDOWN_EL.textContent = fmt(left);
+    if (left <= 10_000) toastEl.classList.add('show'); else toastEl.classList.remove('show');
+    if (left <= 0) goBack();
+  }
+  function startIdle(){ stopIdle(); deadline = Date.now() + IDLE_MS; idleTimer=setTimeout(goBack,IDLE_MS); tickTimer=setInterval(updateCountdown,1000); updateCountdown(); }
+  function stopIdle(){ if (idleTimer){clearTimeout(idleTimer); idleTimer=null;} if (tickTimer){clearInterval(tickTimer); tickTimer=null;} }
+  function resetIdle(){ startIdle(); }
+  function goBack(){ stopIdle(); document.body.classList.add('fading'); setTimeout(()=>{ location.href='index.html'; }, 300); }
+
+  // ---------- Recordar filtres i events ----------
+  const savedSvc  = localStorage.getItem('cartells.service') || 'tots';
+  const savedKind = localStorage.getItem('cartells.kind')    || 'tots';
+  serviceSelect.value = savedSvc;
+  typeSelect.value    = savedKind;
+
+  ['pointerdown','pointermove','wheel','keydown','touchstart'].forEach(ev =>
+    document.addEventListener(ev, resetIdle, { passive:true })
+  );
+  document.getElementById('backBtn').addEventListener('click', (e)=>{ e.preventDefault(); goBack(); });
+
+  serviceSelect.addEventListener('change', ()=>{
+    localStorage.setItem('cartells.service', serviceSelect.value);
+    buildSlides();
+    resetIdle();
+  });
+  typeSelect.addEventListener('change', ()=>{
+    localStorage.setItem('cartells.kind', typeSelect.value);
+    buildSlides();
+    resetIdle();
+  });
+
+  // ---------- Init ----------
+  window.addEventListener('load', async ()=>{
+    document.body.classList.add('ready');
+    await buildSlides();
+    startIdle();
+  });
+
+  // (Opcional) Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+    });
+  }
+  </script>
+  <script> if (document.querySelector('.carousel')) document.body.classList.add('carteles'); </script>
+</body>
+</html>

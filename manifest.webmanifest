@@ -1,0 +1,14 @@
+{
+  "name": "Monitor acústic – Hospital",
+  "short_name": "Acústic",
+  "description": "Webapp per monitoritzar el nivell de soroll amb mode dia/nit. No grava àudio.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

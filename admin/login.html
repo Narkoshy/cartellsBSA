@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inici de sessió · Admin</title>
+
+  <!-- Estil mínimo inline para no depender de admin.css -->
+  <style>
+    :root{
+      --bg:#0b1220; --card:#111a2b; --accent:#3aa4ff; --text:#e9f1ff; --muted:#94a3b8;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      color:var(--text); background:linear-gradient(180deg,#0b1220,#0d1628 40%,#0b1220);
+      display:grid; place-items:center; min-height:100svh; padding:16px;
+    }
+    .card{
+      width:100%; max-width:420px; background:var(--card);
+      border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:20px;
+      box-shadow:0 10px 40px rgba(0,0,0,.35);
+    }
+    h1{margin:0 0 14px 0; font-size:22px}
+    .muted{color:var(--muted); font-size:13px}
+    label{display:block; font-size:13px; color:var(--muted); margin:10px 0 6px}
+    input{
+      width:100%; background:rgba(255,255,255,.06); color:var(--text);
+      border:1px solid rgba(255,255,255,.12); border-radius:10px;
+      padding:10px 12px; font-size:14px;
+    }
+    .row{display:flex; gap:10px; align-items:center}
+    .btn{
+      display:inline-flex; justify-content:center; align-items:center; gap:8px;
+      padding:10px 14px; min-height:44px; border-radius:12px; font-weight:700;
+      border:1px solid rgba(255,255,255,.12); cursor:pointer;
+    }
+    .btn-primary{ background:var(--accent); color:#001428; box-shadow:0 6px 18px rgba(58,164,255,.3) }
+    .btn-ghost{ background:rgba(255,255,255,.06); color:var(--text) }
+    .error{ margin-top:10px; color:#fca5a5; font-size:13px; min-height:1em }
+    .ok{ margin-top:10px; color:#86efac; font-size:13px; min-height:1em }
+    .footer{margin-top:14px; display:flex; justify-content:space-between; align-items:center}
+    .pw-wrap{ position:relative }
+    .toggle-pw{
+      position:absolute; right:8px; top:50%; transform:translateY(-50%);
+      background:transparent; border:none; color:var(--muted); cursor:pointer; font-size:13px;
+    }
+    .brand{margin-bottom:8px; font-size:13px; color:var(--muted)}
+  </style>
+
+  <!-- Supabase JS -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="card" role="dialog" aria-labelledby="title">
+    <div class="brand">🏥 Hospital · Àrea d’administració</div>
+    <h1 id="title">Inici de sessió</h1>
+    <div class="muted">Accés restringit. Introdueix el teu email i contrasenya.</div>
+
+    <form id="loginForm" autocomplete="on" style="margin-top:12px">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" inputmode="email" autocomplete="username" required placeholder="usuari@hospital.cat"/>
+
+      <label for="password">Contrasenya</label>
+      <div class="pw-wrap">
+        <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="********"/>
+        <button type="button" class="toggle-pw" tabindex="-1" aria-label="Mostra/oculta"
+                onclick="const p=document.getElementById('password'); p.type = p.type==='password'?'text':'password'">
+          👁
+        </button>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <button id="btnLogin" class="btn btn-primary" type="submit">Entrar</button>
+        <button id="btnClear" class="btn btn-ghost" type="button">Neteja</button>
+      </div>
+
+      <div id="msg" class="error" role="status" aria-live="polite"></div>
+      <div id="ok" class="ok" role="status" aria-live="polite"></div>
+
+      <div class="footer">
+        <a class="muted" href="../index.html">← Tornar al monitor</a>
+        <span class="muted">v0.3</span>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // === Config Supabase (las mismas que ya usas) ===
+    const SUPABASE_URL = "https://wnkgzpgagprncbtqnzrw.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indua2d6cGdhZ3BybmNidHFuenJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjQyNTQsImV4cCI6MjA3MDc0MDI1NH0.sXkV7N9Y2nDOTA3tZpWkAhs2SCGriXJWyieglxxFIRY";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Si ya hay sesión activa → entra directo a admin
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        window.location.href = "./index.html";
+      }
+    })();
+
+    const form = document.getElementById('loginForm');
+    const btnLogin = document.getElementById('btnLogin');
+    const btnClear = document.getElementById('btnClear');
+    const msg = document.getElementById('msg');
+    const ok = document.getElementById('ok');
+
+    btnClear.addEventListener('click', () => {
+      form.reset();
+      msg.textContent = "";
+      ok.textContent = "";
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.textContent = ""; ok.textContent = "";
+      btnLogin.disabled = true; btnLogin.textContent = "Entrant…";
+
+      const email = (document.getElementById('email').value || "").trim();
+      const password = document.getElementById('password').value || "";
+
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+
+        ok.textContent = "Sessió iniciada. Redirigint…";
+        // Redirige en cuanto se guarde la sessió (supabase-js lo hace solo)
+        setTimeout(() => window.location.href = "./index.html", 450);
+      } catch (err) {
+        msg.textContent = err?.message || "No s'ha pogut iniciar sessió.";
+      } finally {
+        btnLogin.disabled = false; btnLogin.textContent = "Entrar";
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin · Cartells i Protocols</title>
+  <link rel="stylesheet" href="admin.css" />
+ <script type="module" src="./auth-guard.js"></script>
+  <!-- Estils mínimos para la barra de filtro / alertes (no invade admin.css) -->
+  <style>
+    .filter-bar{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      margin:12px 0 18px;
+    }
+    .filter-bar .field{
+      display:flex; align-items:center; gap:6px;
+      background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12);
+      padding:6px 10px; border-radius:10px;
+    }
+    .filter-bar select, .filter-bar input[type="search"], .filter-bar input[type="number"]{
+      background:transparent; color:inherit; border:none; outline:none; min-height:36px;
+    }
+    .filter-bar .btn{
+      appearance:none; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06);
+      color:inherit; padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700;
+    }
+    .filter-meta{ font-size:12px; opacity:.8 }
+
+    .alerts{
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+      background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12);
+      padding:10px 12px; border-radius:12px; margin:8px 0 16px;
+    }
+    .pill{
+      display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
+      border:1px solid transparent; font-weight:700; font-size:13px;
+    }
+    .pill.ok{ background:rgba(34,197,94,.15); color:#86efac; border-color:rgba(34,197,94,.35) }
+    .pill.soon{ background:rgba(245,158,11,.15); color:#fcd34d; border-color:rgba(245,158,11,.35) }
+    .pill.overdue{ background:rgba(239,68,68,.15); color:#fca5a5; border-color:rgba(239,68,68,.35) }
+
+    /* Badge dentro de cada ítem (si tu admin.css no tiene uno) */
+    .rev-badge{
+      display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
+      border:1px solid transparent; font-weight:700; font-size:12px; white-space:nowrap;
+    }
+    .rev-ok{ background:rgba(34,197,94,.15); color:#86efac; border-color:rgba(34,197,94,.35) }
+    .rev-soon{ background:rgba(245,158,11,.15); color:#fcd34d; border-color:rgba(245,158,11,.35) }
+    .rev-overdue{ background:rgba(239,68,68,.15); color:#fca5a5; border-color:rgba(239,68,68,.35) }
+
+    /* Pequeños ajustes de layout en la fila inferior del ítem */
+    .row.between.wrap { gap:8px; }
+    .row .rev-slot { margin-left:auto; }
+  </style>
+</head>
+<body>
+  <!-- Lateral -->
+  <aside class="side">
+    <h1>🛠 Admin</h1>
+ <div class="muted small" style="margin:6px 0 10px">
+      Sessió: <span id="currentUserEmail">—</span>
+
+    </div>
+    <nav>
+      <a href="#" class="active">Cartells / Protocols</a>
+      <a href="../carteles.html" target="_blank">👀 Obrir carrusel</a>
+      <a href="../index.html" target="_blank">📟 Medidor de soroll</a>
+      <a href="#" title="Config properament">⚙️ Configuració (properament)</a>
+    </nav>
+
+    <div class="side-box">
+      <h4>📦 Estat de publicació</h4>
+      <p class="muted small">Els canvis es guarden localment. Prem “Publica canvis” per fer-los visibles al carrusel.</p>
+      <button id="btnPublish" class="primary" style="width:100%">💾 Publica canvis</button>
+<button id="logoutBtn" class="secondary" style="width:100%; margin-top:8px" onclick="window.__auth?.signOut()">Tancar sessió</button>
+    </div>
+  </aside>
+
+  <!-- Cos principal -->
+  <main class="main">
+    <header class="bar">
+      <h2>Gestió de cartells / protocols</h2>
+    </header>
+
+    <!-- Zona de pujada -->
+    <section class="uploader" id="dropzone" aria-label="Puja imatges o PDFs">
+      <input id="fileInput" type="file" accept="image/*,.pdf" multiple hidden>
+      <p><strong>Arrossega i deixa anar</strong> imatges o PDFs aquí</p>
+      <p class="muted">o</p>
+      <button class="secondary" id="btnBrowse">Selecciona fitxers</button>
+      <p class="muted small">Formats admesos: JPG, PNG, PDF</p>
+    </section>
+
+    <!-- Barra de filtre / recerca / revisió -->
+    <section aria-label="Filtres">
+      <div class="filter-bar" role="group" aria-label="Filtra elements">
+        <div class="field">
+          <label for="filterService" class="sr-only">Filtra per servei</label>
+          <select id="filterService" aria-label="Filtra per servei">
+            <option value="tots">Tots els serveis</option>
+            <option value="Hospitalització">Hospitalització</option>
+            <option value="Urgències">Urgències</option>
+            <option value="Àrea Quirúrgica">Àrea Quirúrgica</option>
+            <option value="Biotecnologia">Biotecnologia</option>
+            <option value="Consultes Externes">Consultes Externes</option>
+          </select>
+        </div>
+
+        <div class="field" style="flex:1 1 260px">
+          <label for="filterText" class="sr-only">Cerca</label>
+          <input id="filterText" type="search" placeholder="Cerca títol, codi, etiquetes…" aria-label="Cerca per text"/>
+        </div>
+
+        <div class="field">
+          <label for="filterReview" class="sr-only">Estat de revisió</label>
+          <select id="filterReview" aria-label="Estat de revisió">
+            <option value="all">Tots</option>
+            <option value="ok">En termini</option>
+            <option value="soon">Proper a caducar (&lt; 30 dies)</option>
+            <option value="overdue">Caducat</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="reviewMonths">Vigència (mesos)</label>
+          <input id="reviewMonths" type="number" min="1" max="60" step="1" value="12" style="width:80px">
+        </div>
+
+        <button id="filterClear" class="btn" type="button" title="Neteja filtres">Neteja</button>
+        <div class="filter-meta" id="filterCount" aria-live="polite"></div>
+      </div>
+
+      <div class="alerts" id="alertsBox" aria-live="polite">
+        <strong>⏰ Revisió:</strong>
+        <span class="pill overdue" id="aOverdue">Caducats: 0</span>
+        <span class="pill soon" id="aSoon">Propers (&lt;30d): 0</span>
+        <span class="pill ok" id="aOk">En termini: 0</span>
+      </div>
+    </section>
+
+    <!-- Llista editable -->
+    <section>
+      <div class="list-head">
+        <h3>Elements</h3>
+        <div class="muted small">Edita metadades, ordre i visibilitat. Pots afegir una <em>miniatura</em> per a PDFs.</div>
+      </div>
+
+      <ul id="items" class="items" aria-live="polite"></ul>
+    </section>
+  </main>
+
+  <!-- Plantilla d’element -->
+  <template id="itemTpl">
+    <li class="item">
+      <div class="thumb" aria-hidden="true"></div>
+
+      <div class="meta">
+        <div class="grid-2">
+          <label>Títol visible
+            <input class="title" placeholder="Títol (p. ex. Protocol d’higiene de mans)" />
+          </label>
+
+          <label>Origen / Servei
+            <select class="origin">
+              <option value="">— Selecciona origen —</option>
+              <option value="Hospitalització">Hospitalització</option>
+              <option value="Urgències">Urgències</option>
+              <option value="Àrea Quirúrgica">Àrea Quirúrgica</option>
+              <option value="Biotecnologia">Biotecnologia</option>
+              <option value="Consultes Externes">Consultes Externes</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="grid-4">
+          <label>Tipus
+            <select class="kind">
+              <option value="protocol">Protocol</option>
+              <option value="cartell">Cartell</option>
+            </select>
+          </label>
+          <label>Codi
+            <input class="code" placeholder="P-123, C-045…" />
+          </label>
+          <label>Versió
+            <input class="version" placeholder="1.0, 2.3…" />
+          </label>
+          <label>Vigent des de
+            <input class="validFrom" type="date" />
+          </label>
+        </div>
+
+        <div class="grid-3">
+          <label>Idiomes
+            <input class="languages" placeholder="ca, es, en…" />
+          </label>
+          <label>Etiquetes
+            <input class="tags" placeholder="silenci, higiene, urgències…" />
+          </label>
+          <label>Enllaç extern (opcional)
+            <input class="exturl" type="url" placeholder="https://…" />
+          </label>
+        </div>
+
+        <div class="row between wrap">
+          <label class="check">
+            <input type="checkbox" class="published" checked> Publicat
+          </label>
+
+          <div class="thumb-actions">
+            <input type="file" accept="image/*" class="thumb-input" hidden>
+            <button class="ghost thumb-set" title="Defineix miniatura">🖼 Defineix miniatura</button>
+            <button class="ghost thumb-clear" title="Treu miniatura" disabled>✖ Treu</button>
+          </div>
+
+          <span class="muted fileinfo"></span>
+
+          <!-- Espai per al badge de revisió -->
+          <span class="rev-slot"></span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="ghost up" title="Puja">↑</button>
+        <button class="ghost down" title="Baixa">↓</button>
+        <button class="ghost preview" title="Previsualitza">👁</button>
+        <button class="danger remove" title="Esborra">🗑</button>
+      </div>
+    </li>
+  </template>
+
+  <script src="admin.js"></script>
+
+  <!-- Script de filtres client (inclou estat revisió) -->
+  <script>
+    (function(){
+      const $  = (s, r=document)=>r.querySelector(s);
+      const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
+      const itemsUL = $("#items");
+      const svcSel  = $("#filterService");
+      const txtInp  = $("#filterText");
+      const revSel  = $("#filterReview");
+      const clrBtn  = $("#filterClear");
+      const countEl = $("#filterCount");
+      const monthsInp = $("#reviewMonths");
+      const aOk = $("#aOk"), aSoon = $("#aSoon"), aOver = $("#aOverdue");
+
+      // Carga/guarda política global de meses
+      const savedMonths = Number(localStorage.getItem("review.months") || 12);
+      monthsInp.value = Math.max(1, savedMonths);
+      document.documentElement.style.setProperty("--review-months", monthsInp.value);
+
+      monthsInp.addEventListener("change", ()=>{
+        const v = Math.max(1, Number(monthsInp.value||12));
+        localStorage.setItem("review.months", String(v));
+        // Pide a admin.js que re-renderice con nueva política:
+        document.dispatchEvent(new CustomEvent("reviewMonthsChanged", { detail: { months: v }}));
+      });
+
+      const norm = s => (s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+
+      function getItemService(li){ return li.querySelector(".origin")?.value || ""; }
+      function getItemTextHaystack(li){
+        const t = li.querySelector(".title")?.value || "";
+        const c = li.querySelector(".code")?.value || "";
+        const tags = li.querySelector(".tags")?.value || "";
+        return norm([t,c,tags].join(" "));
+      }
+      function getReview(li){ return li.getAttribute("data-review") || "ok"; }
+
+      function applyFilters(){
+        const svc = svcSel?.value || "tots";
+        const q   = norm(txtInp?.value || "");
+        const rv  = revSel?.value || "all";
+        const lis = $$(".item", itemsUL);
+        let vis = 0, cOk=0, cSoon=0, cOver=0;
+
+        lis.forEach(li=>{
+          const itemSvc = getItemService(li);
+          const hay = getItemTextHaystack(li);
+          const r = getReview(li);
+          if (r==="ok") cOk++; else if (r==="soon") cSoon++; else if (r==="overdue") cOver++;
+
+          const passSvc = (svc === "tots") || (itemSvc === svc);
+          const passTxt = !q || hay.includes(q);
+          const passRev = (rv === "all") || (r === rv);
+
+          const show = passSvc && passTxt && passRev;
+          li.style.display = show ? "" : "none";
+          if (show) vis++;
+        });
+
+        countEl.textContent = `${vis} visibles de ${lis.length}`;
+        aOk.textContent   = `En termini: ${cOk}`;
+        aSoon.textContent = `Propers (<30d): ${cSoon}`;
+        aOver.textContent = `Caducats: ${cOver}`;
+      }
+
+      // Re-aplica filtros tras render de admin.js
+      const mo = new MutationObserver(()=> applyFilters());
+      mo.observe(itemsUL, { childList:true, subtree:true });
+
+      svcSel?.addEventListener("change", applyFilters);
+      txtInp?.addEventListener("input", applyFilters);
+      revSel?.addEventListener("change", applyFilters);
+      clrBtn?.addEventListener("click", ()=>{
+        svcSel.value = "tots"; txtInp.value = ""; revSel.value = "all"; applyFilters();
+      });
+
+      // Reaplicar cuando cambie el origen o cualquier campo del ítem (por seguridad)
+      document.addEventListener("change", (e)=>{
+        if (e.target && e.target.closest && e.target.closest("#items")) applyFilters();
+      });
+
+      window.addEventListener("load", applyFilters);
+      document.addEventListener("DOMContentLoaded", applyFilters);
+    })();
+  </script>
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js';
+
+  // Usa el cliente creado por auth-guard.js si existe
+  const supabase = window.supabaseClient ?? createClient(
+    'https://wnkgzpgagprncbtqnzrw.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indua2d6cGdhZ3BybmNidHFuenJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjQyNTQsImV4cCI6MjA3MDc0MDI1NH0.sXkV7N9Y2nDOTA3tZpWkAhs2SCGriXJWyieglxxFIRY'
+  );
+
+  const btn = document.getElementById('logoutBtn');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        console.warn('signOut error:', e);
+      } finally {
+        // Limpia cachés locales por si acaso
+        try { localStorage.clear(); sessionStorage.clear(); } catch {}
+        // Redirige al login que está en la misma carpeta admin/
+        window.location.href = './login.html';
+      }
+    });
+  }
+</script>
+</body>
+</html>
