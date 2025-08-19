@@ -2,34 +2,57 @@
 <html lang="ca">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Cartells i protocols – Hospital</title>
+  <meta name="description" content="Selecció visual de cartells i protocols per servei i tipus. Carrusel tàctil i responsive."/>
 
-  <meta name="description" content="Selecció visual de cartells i protocols per servei i tipus. Carrusel tàctil amb filtres."/>
-
-  <!-- Estils globals -->
+  <!-- Estils globals del projecte -->
   <link rel="stylesheet" href="style.css" />
 
   <!-- Swiper CSS -->
   <link rel="stylesheet" href="https://unpkg.com/swiper@11/swiper-bundle.min.css"/>
 
-  <!-- Estils locals mínims (aseguran visibilidad de UI aunque style.css cambie) -->
+  <!-- Overrides específicos, seguros y con !important para ganar a style.css -->
   <style>
     :root{ --text:#e8edf3; --muted:#9aa3ad; --accent:#4f8cff; --tap-min:44px }
-    body{ opacity:0; transition:opacity .3s ease }
-    body.ready{ opacity:1 }
-    body.fading{ opacity:0 }
-    .app{ overflow:visible; container-type:inline-size; container-name:appsize }
 
-    header.header{
-      display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px; margin-bottom:8px;
+    html, body { height:100%; }
+    body {
+      margin:0 !important;
+      background:#0b1220;
+      color:var(--text);
+      opacity:0; transition:opacity .2s ease;
     }
-    .hdr-left h1{ margin:0; color:var(--text) }
-    .hdr-center{ justify-self:center; display:flex; align-items:center; gap:12px; flex-wrap:wrap }
-    .hdr-right{ justify-self:end }
+    body.ready { opacity:1 }
+    body.fading{ opacity:0 }
 
-    .service-select,
-    .type-select{
+    /* App a pantalla completa con flex (más estable para este caso) */
+    .app{
+      position:fixed; inset:0;        /* ocupa todo el viewport real */
+      display:flex; flex-direction:column;
+      min-height:100svh; height:100dvh;
+      max-width:100vw;
+      overflow:hidden;                /* sin scrolls raros */
+    }
+
+    /* HEADER */
+    header.header{
+      flex:0 0 auto;
+      display:grid;
+      grid-template-columns:1fr auto 1fr;
+      align-items:center;
+      gap:10px;
+      padding:8px clamp(10px,2vw,16px);
+      background:rgba(0,0,0,.25);
+      border-bottom:1px solid rgba(255,255,255,.06);
+      backdrop-filter: blur(4px);
+    }
+    .hdr-left{ justify-self:start }
+    .hdr-center{ justify-self:center; display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+    .hdr-right{ justify-self:end; display:flex; gap:8px }
+    .hdr-left h1{ margin:0; color:var(--text); font-size:clamp(16px, 2.6vw, 22px) }
+
+    .service-select, .type-select{
       background:rgba(255,255,255,.08);
       color:var(--text);
       border:1px solid rgba(255,255,255,.25);
@@ -37,6 +60,7 @@
       padding:8px 12px;
       min-height:var(--tap-min);
       font-weight:700;
+      font-size:clamp(14px,1.6vw,16px);
       appearance:auto;
     }
     .link-btn{
@@ -46,62 +70,109 @@
       border-radius:12px;
       padding:10px 14px;
       text-decoration:none;
-      font-weight:700; font-size:14px;
+      font-weight:700; font-size:clamp(14px,1.6vw,16px);
       white-space:nowrap;
+      min-height:var(--tap-min);
     }
 
-    .carousel{
-      position:relative; margin-top:10px;
-      background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
-      border-radius:16px; padding:12px;
+    /* MAIN: el carrusel ocupa todo el espacio disponible */
+    main{
+      flex:1 1 auto;
+      min-height:0 !important;   /* CLAVE: permite que el hijo crezca */
+      display:block;
+      overflow:hidden;            /* evita scroll interno */
     }
-    .swiper{ width:100%; overflow:visible; position:relative; z-index:1 }
-    .swiper-wrapper{ align-items:stretch }
-    .swiper-slide{ display:grid; grid-template-rows:auto min-content; padding:6px; min-height:clamp(260px, 50vh, 620px) }
 
-    .frame{
-      background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.06);
-      border-radius:12px; overflow:hidden;
-      display:grid; grid-template-rows:auto min-content;
-      place-items:center; min-height:clamp(240px, 46vh, 560px);
+    /* Carrusel y Swiper a 100% de alto real */
+    .carousel { position:relative; height:100%; min-height:0 !important; }
+    .swiper, .swiper-wrapper, .swiper-slide { height:100% !important; min-height:0 !important; }
+    .swiper { width:100%; position:relative; z-index:1; overflow:hidden; }
+
+    /* Estructura interna del slide: visor (1fr) + caption (auto) */
+    .swiper-slide{
+      display:flex; flex-direction:column; align-items:stretch;
+      padding:0 0 22px 0; /* espacio para dots */
     }
-    .swiper-zoom-container{ width:100%; height:clamp(220px, 40vh, 520px) }
-    .swiper-zoom-container img{ width:100%; height:100%; object-fit:contain; background:rgba(0,0,0,.25); display:block }
+    .viewer{ flex:1 1 auto; min-height:0 !important; display:block; }
+    .swiper-zoom-container{ width:100%; height:100%; min-height:0 !important; }
+    .swiper-zoom-container img{
+      width:100%; height:100%;
+      object-fit:contain; background:rgba(0,0,0,.25); display:block;
+      touch-action:pan-x pan-y;
+    }
 
-    .pdf-card{ display:grid; place-items:center; width:100%; height:clamp(220px,40vh,520px); background:rgba(0,0,0,.25); border-radius:8px }
+    /* PDFs */
+    .pdf-card{
+      display:grid; place-items:center; width:100%; height:100%;
+      background:rgba(0,0,0,.25);
+      border-radius:8px;
+    }
     .pdf-title{ margin-top:8px; font-size:14px; color:var(--muted) }
 
-    .caption{ display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px; width:100% }
-    .caption h3{ margin:0; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70vw; color:var(--text) }
-
-    .swiper-button-prev, .swiper-button-next{
-      width:42px; height:42px; border-radius:999px; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.25);
-      color:#fff; backdrop-filter:blur(2px); z-index:5;
+    /* Caption */
+    .caption{
+      flex:0 0 auto;
+      display:flex; justify-content:space-between; align-items:center;
+      gap:12px; padding:10px clamp(10px,2vw,14px);
     }
-    .swiper-button-prev::after, .swiper-button-next::after{ font-size:18px; font-weight:700 }
-    .swiper-button-prev{ left:10px } .swiper-button-next{ right:10px }
+    .caption h3{
+      margin:0; color:var(--text);
+      font-size:clamp(16px, 2vw, 20px);
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      max-width:72vw;
+    }
+
+    /* Botones Swiper SIEMPRE visibles */
+    .swiper-button-prev, .swiper-button-next{
+      width:48px; height:48px; border-radius:999px;
+      background:rgba(0,0,0,.45);
+      border:1px solid rgba(255,255,255,.35);
+      color:#fff; backdrop-filter:blur(2px);
+      z-index:50 !important; pointer-events:auto !important;
+    }
+    .swiper-button-prev::after, .swiper-button-next::after{ font-size:20px; font-weight:700 }
+    .swiper-button-prev{ left:12px } .swiper-button-next{ right:12px }
+    .swiper .swiper-pagination{ bottom:6px !important; }
 
     .swiper-pagination-bullet{ background:rgba(255,255,255,.35); opacity:1; border:1px solid rgba(255,255,255,.45) }
     .swiper-pagination-bullet-active{ background:var(--accent); border-color:transparent }
 
-    .empty{ display:grid; place-items:center; padding:32px; color:var(--muted); text-align:center }
-    .return-note{ margin-top:12px; font-size:13px; color:var(--muted); display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap }
-    .toast{ position:fixed; inset:auto 16px 16px auto; background:rgba(0,0,0,.6); color:white; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.12); font-size:13px; display:none }
+    /* FOOTER */
+    .return-note{
+      flex:0 0 auto;
+      margin:0;
+      padding:8px clamp(10px,2vw,14px);
+      font-size:13px; color:var(--muted);
+      background:rgba(0,0,0,.25);
+      border-top:1px solid rgba(255,255,255,.06);
+      display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    }
+
+    .toast{
+      position:fixed; inset:auto 16px 16px auto;
+      background:rgba(0,0,0,.6); color:white;
+      padding:10px 12px; border-radius:10px;
+      border:1px solid rgba(255,255,255,.12);
+      font-size:13px; display:none; z-index:10000;
+    }
     .toast.show{ display:block }
 
-    @container appsize (max-height:640px){
-      .swiper-zoom-container{ height:36vh }
-      .caption h3{ font-size:14px }
+    @media (max-width: 680px){
+      header.header{ grid-template-columns:1fr; justify-items:stretch }
+      .hdr-left, .hdr-center, .hdr-right{ justify-self:stretch }
+      .hdr-center{ justify-content:space-between }
+      .caption h3{ max-width:60vw }
     }
   </style>
 </head>
 <body>
   <div class="app">
+    <!-- HEADER -->
     <header class="header">
       <div class="hdr-left"><h1>📋 Cartells i protocols</h1></div>
 
       <div class="hdr-center">
-        <label for="serviceSelect" class="visually-hidden">Filtra per servei</label>
+        <label for="serviceSelect" class="sr-only">Filtra per servei</label>
         <select id="serviceSelect" class="service-select" aria-label="Filtra per servei">
           <option value="tots">Tots els serveis</option>
           <option value="hospitalitzacio">Hospitalització</option>
@@ -110,7 +181,7 @@
           <option value="consultes-externes">Consultes Externes</option>
         </select>
 
-        <label for="typeSelect" class="visually-hidden">Filtra per tipus</label>
+        <label for="typeSelect" class="sr-only">Filtra per tipus</label>
         <select id="typeSelect" class="type-select" aria-label="Filtra per tipus">
           <option value="tots">Tots els tipus</option>
           <option value="cartell">Cartells</option>
@@ -123,15 +194,19 @@
       </div>
     </header>
 
-    <div class="carousel" aria-roledescription="carrusel" aria-label="Cartells disponibles">
-      <div class="swiper" id="swiper">
-        <div class="swiper-wrapper" id="swiperWrapper"></div>
-        <div class="swiper-button-prev" id="btnPrev" aria-label="Anterior"></div>
-        <div class="swiper-button-next" id="btnNext" aria-label="Següent"></div>
-        <div class="swiper-pagination" id="dots" aria-hidden="true"></div>
+    <!-- MAIN / CARRUSEL -->
+    <main>
+      <div class="carousel" aria-roledescription="carrusel" aria-label="Cartells disponibles">
+        <div class="swiper" id="swiper">
+          <div class="swiper-wrapper" id="swiperWrapper"></div>
+          <div class="swiper-button-prev" id="btnPrev" aria-label="Anterior"></div>
+          <div class="swiper-button-next" id="btnNext" aria-label="Següent"></div>
+          <div class="swiper-pagination" id="dots" aria-hidden="true"></div>
+        </div>
       </div>
-    </div>
+    </main>
 
+    <!-- FOOTER -->
     <div class="return-note">
       <span>Desplaça a esquerra/dreta, usa les fletxes del teclat o els botons.</span>
       <span id="cdWrap">Tornada automàtica al monitor en <strong class="countdown" id="countdown">05:00</strong>.</span>
@@ -140,9 +215,8 @@
     <div class="toast" id="toast">Tornant al monitor…</div>
   </div>
 
-  <!-- Supabase JS (CDN) -->
+  <!-- Supabase + Swiper -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <!-- Swiper JS -->
   <script src="https://unpkg.com/swiper@11/swiper-bundle.min.js"></script>
 
   <script>
@@ -194,14 +268,15 @@
 
   // Pinta cada slide (usa thumb si existe)
   function makeSlide(model){
-    // model: { kind, url:file_url, thumb:thumb_url|null, title, mime }
+    // model: { kind: 'img'|'pdf', url, thumb|null, title, mime }
     const slide = document.createElement('div');
     slide.className = 'swiper-slide';
-    slide.innerHTML = `<div class="frame"></div>`;
-    const frame = slide.firstElementChild;
 
-    const displayUrl = model.thumb || (model.kind === 'cartell' ? model.url : null);
+    // visor (1fr)
+    const viewer = document.createElement('div');
+    viewer.className = 'viewer';
 
+    const displayUrl = model.thumb || (model.kind === 'img' ? model.url : null);
     if (displayUrl){
       const zoom = document.createElement('div');
       zoom.className = 'swiper-zoom-container';
@@ -209,20 +284,22 @@
       img.alt = model.title || '';
       img.src = displayUrl;
       zoom.appendChild(img);
-      frame.appendChild(zoom);
+      viewer.appendChild(zoom);
     } else {
       const box = document.createElement('div');
       box.className = 'pdf-card';
       box.innerHTML = `<div style="font-size:42px">📄</div><div class="pdf-title">${model.title || 'Document'}</div>`;
-      frame.appendChild(box);
+      viewer.appendChild(box);
     }
 
+    // caption (auto)
     const cap = document.createElement('div');
     cap.className = 'caption';
     cap.innerHTML = `<h3 title="${model.title || ''}">${model.title || ''}</h3>
                      <div class="actions"><a class="link-btn" href="${model.url}" target="_blank" rel="noopener noreferrer">Obrir</a></div>`;
-    frame.appendChild(cap);
 
+    slide.appendChild(viewer);
+    slide.appendChild(cap);
     return slide;
   }
 
@@ -244,17 +321,12 @@
       .select('id,title,service,kind,mime,file_url,thumb_url,published,order_index,updated_at')
       .eq('published', true);
 
-    // Filtro de servicio
     if (svcCode !== 'tots') {
       const human = SERVICE_LABEL[svcCode] || svcCode;
-      // tolerante con acentos y variantes
       q = q.or(`service.ilike.%${human}%,service.ilike.%${svcCode}%`);
     }
 
-    // Filtro de tipus
     if (kindCode !== 'tots') {
-      // Si la columna kind está bien poblada, filtrará por ahí;
-      // si no, añadimos heurística por mime en cliente (ver más abajo).
       q = q.eq('kind', kindCode);
     }
 
@@ -264,12 +336,11 @@
     const { data, error } = await q;
     if (error){ console.error('[Supabase] error:', error); return []; }
 
-    // Map a modelo de UI y normaliza kind si falta
     return (data || []).map(row => {
-      const fromMime = (row.mime || '').startsWith('image/') ? 'cartell'
-                      : (row.mime === 'application/pdf') ? 'protocol'
-                      : null;
-      const kind = row.kind || fromMime || 'cartell';
+      const fromMime = (row.mime || '').startsWith('image/') ? 'img'
+                      : (row.mime === 'application/pdf') ? 'pdf'
+                      : 'img';
+      const kind = row.kind ? (row.kind === 'cartell' ? 'img' : 'pdf') : fromMime;
       return {
         kind,
         url: row.file_url,
@@ -290,492 +361,23 @@
 
     let slides = await fetchFromSupabase(svc, kind);
 
-    // Heurística adicional por MIME si el filtro es per tipus y la DB no tiene 'kind'
+    // Heurística extra por MIME (por si la columna kind no está rellenada)
     if (kind !== 'tots') {
       slides = slides.filter(s => {
-        if (kind === 'cartell') return s.kind === 'cartell' || (s.mime || '').startsWith('image/');
-        if (kind === 'protocol') return s.kind === 'protocol' || s.mime === 'application/pdf';
+        if (kind === 'cartell') return s.kind === 'img' || (s.mime || '').startsWith('image/');
+        if (kind === 'protocol') return s.kind === 'pdf' || s.mime === 'application/pdf';
         return true;
       });
     }
 
-    if (!slides || slides.length === 0){
+    if (!slides.length){
       const slide = document.createElement('div');
       slide.className = 'swiper-slide';
       const empty = document.createElement('div');
-      empty.className = 'empty';
-      const svcLabel = (svc==='tots' ? 'Tots els serveis' : (SERVICE_LABEL[svc]||'Servei'));
-      const kindLabel = (kind==='tots' ? '' : (kind==='cartell' ? ' · Cartells' : ' · Protocols'));
-      empty.textContent = `Cap element per a “${svcLabel}${kindLabel}”.`;
-      slide.appendChild(empty);
-      wrapper.appendChild(slide);
-      initSwiper(1);
-      return;
-    }
-
-    slides.forEach(s => wrapper.appendChild(makeSlide(s)));
-    initSwiper(slides.length);
-  }
-
-  // ---------- Auto-retorn al monitor ----------
-  const IDLE_MS = 5*60*1000;
-  let idleTimer = null, tickTimer = null, deadline = Date.now() + IDLE_MS;
-
-  function fmt(ms){
-    const s=Math.max(0,Math.round(ms/1000));
-    const m=String(Math.floor(s/60)).padStart(2,'0');
-    const r=String(s%60).padStart(2,'0');
-    return `${m}:${r}`;
-  }
-  function updateCountdown(){
-    const left = deadline - Date.now();
-    COUNTDOWN_EL.textContent = fmt(left);
-    if (left <= 10_000) toastEl.classList.add('show'); else toastEl.classList.remove('show');
-    if (left <= 0) goBack();
-  }
-  function startIdle(){ stopIdle(); deadline = Date.now() + IDLE_MS; idleTimer=setTimeout(goBack,IDLE_MS); tickTimer=setInterval(updateCountdown,1000); updateCountdown(); }
-  function stopIdle(){ if (idleTimer){clearTimeout(idleTimer); idleTimer=null;} if (tickTimer){clearInterval(tickTimer); tickTimer=null;} }
-  function resetIdle(){ startIdle(); }
-  function goBack(){ stopIdle(); document.body.classList.add('fading'); setTimeout(()=>{ location.href='index.html'; }, 300); }
-
-  // ---------- Recordar filtres i events ----------
-  const savedSvc  = localStorage.getItem('cartells.service') || 'tots';
-  const savedKind = localStorage.getItem('cartells.kind')    || 'tots';
-  serviceSelect.value = savedSvc;
-  typeSelect.value    = savedKind;
-
-  ['pointerdown','pointermove','wheel','keydown','touchstart'].forEach(ev =>
-    document.addEventListener(ev, resetIdle, { passive:true })
-  );
-  document.getElementById('backBtn').addEventListener('click', (e)=>{ e.preventDefault(); goBack(); });
-
-  serviceSelect.addEventListener('change', ()=>{
-    localStorage.setItem('cartells.service', serviceSelect.value);
-    buildSlides();
-    resetIdle();
-  });
-  typeSelect.addEventListener('change', ()=>{
-    localStorage.setItem('cartells.kind', typeSelect.value);
-    buildSlides();
-    resetIdle();
-  });
-
-  // ---------- Init ----------
-  window.addEventListener('load', async ()=>{
-    document.body.classList.add('ready');
-    await buildSlides();
-    startIdle();
-  });
-
-  // (Opcional) Service Worker
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
-    });
-  }
-  </script>
-  <script> if (document.querySelector('.carousel')) document.body.classList.add('carteles'); </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="ca">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>Cartells i protocols – Hospital</title>
-
-  <meta name="description" content="Selecció visual de cartells i protocols per servei i tipus. Carrusel tàctil i responsive."/>
-
-  <!-- Estils globals -->
-  <link rel="stylesheet" href="style.css" />
-
-  <!-- Swiper CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/swiper@11/swiper-bundle.min.css"/>
-
-  <!-- Estils locals mínims per a aquesta pàgina -->
-  <style>
-    :root{ --text:#e8edf3; --muted:#9aa3ad; --accent:#4f8cff; --tap-min:44px }
-    /* Fade */
-    body{ opacity:0; transition:opacity .25s ease }
-    body.ready{ opacity:1 }
-    body.fading{ opacity:0 }
-
-    /* Layout pantalla completa: header / carrusel / peu  */
-    .app{
-      height:100dvh; /* d=dynamic per iOS/Android */
-      max-width:100vw;
-      margin:0;
-      padding:0;
-      border:0;
-      border-radius:0;
-      display:grid;
-      grid-template-rows:auto 1fr auto;
-      container-type:inline-size;
-      container-name:appsize;
-    }
-
-    /* HEADER: títol + filtres centrats + enrere */
-    header.header{
-      display:grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items:center;
-      gap:10px;
-      padding:8px clamp(10px,2vw,16px);
-      background:rgba(0,0,0,.25);
-      border-bottom:1px solid rgba(255,255,255,.06);
-      backdrop-filter: blur(4px);
-    }
-    .hdr-left{ justify-self:start }
-    .hdr-center{ justify-self:center; display:flex; align-items:center; gap:8px; flex-wrap:wrap }
-    .hdr-right{ justify-self:end; display:flex; gap:8px }
-    .hdr-left h1{ margin:0; color:var(--text); font-size:clamp(16px, 2.6vw, 22px) }
-
-    .filter{
-      display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-    }
-    .service-select, .kind-select{
-      background:rgba(255,255,255,.08);
-      color:var(--text);
-      border:1px solid rgba(255,255,255,.25);
-      border-radius:12px;
-      padding:8px 12px;
-      min-height:var(--tap-min);
-      font-weight:700;
-      font-size:clamp(14px,1.6vw,16px);
-      appearance:auto;
-    }
-    .link-btn{
-      background:rgba(255,255,255,.08);
-      color:var(--text);
-      border:1px solid rgba(255,255,255,.25);
-      border-radius:12px;
-      padding:10px 14px;
-      font-weight:700;
-      text-decoration:none;
-      font-size:clamp(14px,1.6vw,16px);
-      min-height:var(--tap-min);
-      white-space:nowrap;
-    }
-
-    /* CARRUSEL ocupa tot l'espai disponible */
-    .carousel{
-      position:relative;
-      height:100%;
-      margin:0;
-      padding:0;
-      background:transparent;
-      border:0;
-      border-radius:0;
-    }
-    .swiper,
-    .swiper-wrapper,
-    .swiper-slide{ height:100% }
-    .swiper{ width:100%; position:relative; z-index:1; overflow:hidden }
-
-    /* Cada slide: imatge (1fr) + peu (auto) */
-    .swiper-slide{ display:grid; grid-template-rows: 1fr auto }
-    .frame{
-      display:grid;
-      grid-template-rows: 1fr auto; /* imatge / caption */
-      min-height:0; /* clau perquè 1fr no desbordi */
-      background:transparent;
-      border:0;
-      border-radius:0;
-      padding-bottom:22px; /* espai per punts paginació */
-    }
-
-    /* Vista de la imatge: sempre completa (object-fit: contain) */
-    .swiper-zoom-container{
-      width:100%;
-      height:100%;
-      min-height:0; /* important per evitar overflow en mòbil */
-    }
-    .swiper-zoom-container img{
-      width:100%;
-      height:100%;
-      object-fit:contain;
-      background:rgba(0,0,0,.25);
-      display:block;
-      touch-action:pan-x pan-y; /* scroll natural quan hi ha zoom */
-    }
-
-    /* PDF targeta */
-    .pdf-card{
-      display:grid; place-items:center; width:100%; height:100%;
-      background:rgba(0,0,0,.25);
-      border-radius:8px;
-    }
-    .pdf-title{ margin-top:8px; font-size:14px; color:var(--muted) }
-
-    /* Peu del slide (fora de la imatge) */
-    .caption{
-      display:flex; justify-content:space-between; align-items:center;
-      gap:12px; padding:10px clamp(10px, 2vw, 14px);
-      background:transparent;
-    }
-    .caption h3{
-      margin:0; color:var(--text);
-      font-size:clamp(16px, 2vw, 20px);
-      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-      max-width:72vw;
-    }
-
-    /* Navegació */
-    .swiper-button-prev, .swiper-button-next{
-      width:48px; height:48px; border-radius:999px;
-      background:rgba(0,0,0,.45);
-      border:1px solid rgba(255,255,255,.35);
-      color:#fff; backdrop-filter:blur(2px); z-index:5;
-    }
-    .swiper-button-prev::after, .swiper-button-next::after{ font-size:20px; font-weight:700 }
-    .swiper-button-prev{ left:12px } .swiper-button-next{ right:12px }
-
-    .swiper .swiper-pagination{ bottom:6px !important }
-    .swiper-pagination-bullet{ background:rgba(255,255,255,.35); opacity:1; border:1px solid rgba(255,255,255,.45) }
-    .swiper-pagination-bullet-active{ background:var(--accent); border-color:transparent }
-
-    /* Peu de pàgina (comptador/retorn) */
-    .return-note{
-      margin:0;
-      padding:8px clamp(10px,2vw,14px);
-      font-size:13px; color:var(--muted);
-      background:rgba(0,0,0,.25);
-      border-top:1px solid rgba(255,255,255,.06);
-      display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap;
-    }
-
-    .toast{
-      position:fixed; inset:auto 16px 16px auto;
-      background:rgba(0,0,0,.6); color:white;
-      padding:10px 12px; border-radius:10px;
-      border:1px solid rgba(255,255,255,.12);
-      font-size:13px; display:none; z-index:10000;
-    }
-    .toast.show{ display:block }
-
-    /* Millores en pantalles baixes */
-    @container appsize (max-height:640px){
-      .caption h3{ font-size:14px }
-    }
-    @media (max-width: 680px){
-      header.header{ grid-template-columns: 1fr; justify-items:stretch }
-      .hdr-left, .hdr-center, .hdr-right{ justify-self:stretch }
-      .hdr-center{ justify-content:space-between }
-      .caption h3{ max-width: 60vw }
-    }
-  </style>
-</head>
-<body>
-  <div class="app">
-    <!-- HEADER -->
-    <header class="header">
-      <div class="hdr-left"><h1>📋 Cartells i protocols</h1></div>
-
-      <div class="hdr-center">
-        <div class="filter">
-          <label for="serviceSelect" class="sr-only">Filtra per servei</label>
-          <select id="serviceSelect" class="service-select" aria-label="Filtra per servei">
-            <option value="tots">Tots els serveis</option>
-            <option value="hospitalitzacio">Hospitalització</option>
-            <option value="urgencies">Urgències</option>
-            <option value="area-quirurgica">Àrea Quirúrgica</option>
-            <option value="consultes-externes">Consultes Externes</option>
-          </select>
-
-          <label for="kindSelect" class="sr-only">Filtra per tipus</label>
-          <select id="kindSelect" class="kind-select" aria-label="Filtra per tipus">
-            <option value="tots">Tots els tipus</option>
-            <option value="cartell">Cartells</option>
-            <option value="protocol">Protocols</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="hdr-right">
-        <a class="link-btn" href="index.html" id="backBtn" title="Torna al monitor" rel="noopener noreferrer">← Torna al monitor</a>
-      </div>
-    </header>
-
-    <!-- CARRUSEL -->
-    <div class="carousel" aria-roledescription="carrusel" aria-label="Cartells disponibles">
-      <div class="swiper" id="swiper">
-        <div class="swiper-wrapper" id="swiperWrapper"></div>
-        <div class="swiper-button-prev" id="btnPrev" aria-label="Anterior"></div>
-        <div class="swiper-button-next" id="btnNext" aria-label="Següent"></div>
-        <div class="swiper-pagination" id="dots" aria-hidden="true"></div>
-      </div>
-    </div>
-
-    <!-- PEU -->
-    <div class="return-note">
-      <span>Desplaça a esquerra/dreta, usa les fletxes del teclat o els botons.</span>
-      <span id="cdWrap">Tornada automàtica al monitor en <strong class="countdown" id="countdown">05:00</strong>.</span>
-    </div>
-
-    <div class="toast" id="toast">Tornant al monitor…</div>
-  </div>
-
-  <!-- Supabase JS (CDN) -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <!-- Swiper JS -->
-  <script src="https://unpkg.com/swiper@11/swiper-bundle.min.js"></script>
-
-  <script>
-  // ================================
-  // Config Supabase
-  // ================================
-  const SUPABASE_URL = "https://wnkgzpgagprncbtqnzrw.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indua2d6cGdhZ3BybmNidHFuenJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjQyNTQsImV4cCI6MjA3MDc0MDI1NH0.sXkV7N9Y2nDOTA3tZpWkAhs2SCGriXJWyieglxxFIRY";
-  const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY)
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : null;
-
-  // Mapes: valor select → etiqueta humana (compatibilitat DB)
-  const SERVICE_LABEL = {
-    'hospitalitzacio': 'Hospitalització',
-    'urgencies': 'Urgències',
-    'area-quirurgica': 'Àrea Quirúrgica',
-    'consultes-externes': 'Consultes Externes'
-  };
-
-  // ---------- Elements ----------
-  const wrapper       = document.getElementById('swiperWrapper');
-  const btnPrevEl     = document.getElementById('btnPrev');
-  const btnNextEl     = document.getElementById('btnNext');
-  const dotsEl        = document.getElementById('dots');
-  const toastEl       = document.getElementById('toast');
-  const COUNTDOWN_EL  = document.getElementById('countdown');
-  const serviceSelect = document.getElementById('serviceSelect');
-  const kindSelect    = document.getElementById('kindSelect');
-
-  // ---------- Swiper ----------
-  let swiper = null;
-  function initSwiper(slideCount){
-    if (swiper) { try { swiper.destroy(true, true); } catch(e){} swiper = null; }
-    btnPrevEl.style.display = '';
-    btnNextEl.style.display = '';
-    dotsEl.style.display    = (slideCount > 1) ? '' : 'none';
-
-    swiper = new Swiper('#swiper', {
-      loop: (slideCount > 1),
-      allowTouchMove: true,
-      speed: 350,
-      centeredSlides: true,
-      slidesPerView: 1,
-      keyboard: { enabled: true },
-      navigation: { nextEl: '#btnNext', prevEl: '#btnPrev' },
-      pagination: (slideCount > 1) ? { el: '#dots', clickable: true } : { el: '#dots', clickable: false },
-      zoom: { enabled: true, maxRatio: 3 },
-      on: {
-        slideChange: resetIdle,
-        touchStart: resetIdle
-      }
-    });
-  }
-
-  // Slide model → DOM
-  function makeSlide(model){
-    // model: {kind:'img'|'pdf', url, thumb|null, title}
-    const slide = document.createElement('div');
-    slide.className = 'swiper-slide';
-
-    const frame = document.createElement('div');
-    frame.className = 'frame';
-
-    // Vista principal
-    const displayUrl = model.thumb || (model.kind === 'img' ? model.url : null);
-    if (displayUrl){
-      const zoom = document.createElement('div');
-      zoom.className = 'swiper-zoom-container';
-      const img = document.createElement('img');
-      img.alt = model.title || '';
-      img.src = displayUrl;
-      zoom.appendChild(img);
-      frame.appendChild(zoom);
-    } else {
-      const box = document.createElement('div');
-      box.className = 'pdf-card';
-      box.innerHTML = `<div style="font-size:42px">📄</div><div class="pdf-title">${model.title || 'Document'}</div>`;
-      frame.appendChild(box);
-    }
-
-    // Peu amb títol i enllaç
-    const cap = document.createElement('div');
-    cap.className = 'caption';
-    cap.innerHTML = `<h3 title="${model.title || ''}">${model.title || ''}</h3>
-                     <div class="actions">
-                       <a class="link-btn" href="${model.url}" target="_blank" rel="noopener noreferrer">Obrir</a>
-                     </div>`;
-    frame.appendChild(cap);
-
-    slide.appendChild(frame);
-    return slide;
-  }
-
-  function cleanupObjectURLs(){
-    wrapper.querySelectorAll('img').forEach(img=>{
-      if (img.src.startsWith('blob:')) { try { URL.revokeObjectURL(img.src); } catch{} }
-    });
-    wrapper.querySelectorAll('.actions a').forEach(a=>{
-      if (a.href.startsWith('blob:')) { try { URL.revokeObjectURL(a.href); } catch{} }
-    });
-  }
-  window.addEventListener('beforeunload', cleanupObjectURLs);
-
-  // ---------- Consulta a Supabase (filtrat en servidor) ----------
-  async function fetchFromSupabase(svcCode, kindCode){
-    if (!supabase) return [];
-
-    let q = supabase
-      .from('documents')
-      .select('id,title,service,kind,mime,file_url,thumb_url,published,order_index,updated_at')
-      .eq('published', true);
-
-    // Filtres opcionals
-    if (svcCode && svcCode !== 'tots') {
-      const human = SERVICE_LABEL[svcCode] || svcCode;
-      // accepta formes humanes o slugs (ilike tolerant)
-      q = q.or(`service.ilike.%${human}%,service.ilike.%${svcCode}%`);
-    }
-    if (kindCode && kindCode !== 'tots') {
-      // a DB guardem kind = 'protocol'|'cartell'
-      q = q.eq('kind', kindCode);
-    }
-
-    q = q.order('order_index', { ascending: true, nullsFirst: true })
-         .order('updated_at', { ascending: false });
-
-    const { data, error } = await q;
-    if (error){ console.error('[Supabase] error:', error); return []; }
-
-    return (data || []).map(row => {
-      const isImg = (row.mime || '').startsWith('image/');
-      return {
-        kind: row.kind || (isImg ? 'img' : 'pdf'), // preferim 'kind' si existeix
-        url: row.file_url,
-        thumb: row.thumb_url || null,
-        title: row.title || 'Document'
-      };
-    });
-  }
-
-  // ---------- Construcció UI ----------
-  async function buildSlides(){
-    cleanupObjectURLs();
-    wrapper.innerHTML = '';
-
-    const svc  = serviceSelect.value || 'tots';
-    const kind = kindSelect.value || 'tots';
-
-    const slides = await fetchFromSupabase(svc, kind);
-
-    if (!slides || slides.length === 0){
-      const slide = document.createElement('div');
-      slide.className = 'swiper-slide';
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      const svcLabel = (svc==='tots' ? 'Tots els serveis' : (SERVICE_LABEL[svc]||'Servei'));
+      empty.className = 'pdf-card';
+      const svcLabel  = (svc==='tots' ? 'Tots els serveis' : (SERVICE_LABEL[svc]||'Servei'));
       const kindLabel = (kind==='tots' ? 'tots els tipus' : (kind==='protocol' ? 'protocols' : 'cartells'));
-      empty.textContent = `Cap element per a “${svcLabel} · ${kindLabel}”.`;
+      empty.innerHTML = `<div>Cap element per a “${svcLabel} · ${kindLabel}”.</div>`;
       slide.appendChild(empty);
       wrapper.appendChild(slide);
       initSwiper(1);
@@ -807,11 +409,11 @@
   function resetIdle(){ startIdle(); }
   function goBack(){ stopIdle(); document.body.classList.add('fading'); setTimeout(()=>{ location.href='index.html'; }, 250); }
 
-  // ---------- Persistència filtres i events ----------
+  // ---------- Persistencia filtros y eventos ----------
   const savedSvc  = localStorage.getItem('cartells.service') || 'tots';
-  const savedKind = localStorage.getItem('cartells.kind') || 'tots';
+  const savedKind = localStorage.getItem('cartells.kind')    || 'tots';
   serviceSelect.value = savedSvc;
-  kindSelect.value    = savedKind;
+  typeSelect.value    = savedKind;
 
   ['pointerdown','pointermove','wheel','keydown','touchstart'].forEach(ev =>
     document.addEventListener(ev, resetIdle, { passive:true })
@@ -820,13 +422,11 @@
 
   serviceSelect.addEventListener('change', ()=>{
     localStorage.setItem('cartells.service', serviceSelect.value);
-    buildSlides();
-    resetIdle();
+    buildSlides(); resetIdle();
   });
-  kindSelect.addEventListener('change', ()=>{
-    localStorage.setItem('cartells.kind', kindSelect.value);
-    buildSlides();
-    resetIdle();
+  typeSelect.addEventListener('change', ()=>{
+    localStorage.setItem('cartells.kind', typeSelect.value);
+    buildSlides(); resetIdle();
   });
 
   // ---------- Init ----------
