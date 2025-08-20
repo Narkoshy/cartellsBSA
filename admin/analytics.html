@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin · Quadre de comandament</title>
+
+  <!-- Bloqueig visual fins que hi ha sessió -->
+  <style>
+    html{ background:#0b1220; }
+    body{ visibility:hidden; }
+    body.auth-ready{ visibility:visible; }
+  </style>
+
+  <link rel="stylesheet" href="admin.css" />
+
+  <!-- El guard cridarà això quan hi hagi sessió -->
+  <script>
+    window.__AUTH_OK__ = () => {
+      document.body.classList.add('auth-ready');
+      document.dispatchEvent(new CustomEvent('auth-ready'));
+    };
+  </script>
+
+  <!-- Guard (crea window.supabaseClient i gestiona redireccions) -->
+  <script type="module" src="./auth-guard.js"></script>
+
+  <!-- Chart.js per a les gràfiques -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+  <!-- Estils locals del dashboard -->
+  <style>
+    .bar h2 { margin:0 }
+    .kpis{
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:12px; margin:14px 0;
+    }
+    .kpi{
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:14px; padding:14px;
+      display:flex; flex-direction:column; gap:6px;
+    }
+    .kpi h3{ margin:0; font-size:14px; color:#94a3b8 }
+    .kpi .big{ font-size:28px; font-weight:800 }
+    .grid{
+      display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    }
+    .card{
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:14px; padding:14px;
+    }
+    .card h3{ margin:0 0 10px 0; font-size:16px }
+    .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+    .btn{
+      appearance:none; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06);
+      color:inherit; padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700; font-size:13px;
+    }
+    .btn.primary{ background:#3aa4ff; color:#001428; border:none }
+    table{ width:100%; border-collapse:collapse; font-size:14px; }
+    th,td{ padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.08) }
+    th{ text-align:left; color:#94a3b8; font-weight:600 }
+    .muted{ color:#94a3b8 }
+    .input{
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+      color:inherit; border-radius:10px; padding:8px 10px; min-height:38px;
+    }
+    .split{ display:grid; gap:14px; grid-template-columns:1.5fr 1fr }
+    @media (max-width: 1000px){ .split{ grid-template-columns:1fr } }
+    .table-tools{ display:flex; gap:8px; align-items:center; margin:8px 0 0 }
+    .table-wrap{ overflow:auto; max-height: 60vh; border:1px solid rgba(255,255,255,.08); border-radius:12px; }
+    .search{ min-width:220px }
+    .nowrap{ white-space:nowrap }
+    .badge{ padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700 }
+    .b-ok{ background:rgba(34,197,94,.15); color:#86efac }
+    .b-soon{ background:rgba(245,158,11,.15); color:#fcd34d }
+    .b-over{ background:rgba(239,68,68,.15); color:#fca5a5 }
+  </style>
+</head>
+<body>
+  <!-- Lateral -->
+  <aside class="side">
+    <h1>🛠 Admin</h1>
+    <div class="muted small" style="margin:6px 0 10px">
+      Sessió: <span id="currentUserEmail">—</span>
+    </div>
+    <nav>
+      <a href="./index.html">Cartells / Protocols</a>
+      <a href="../carteles.html" target="_blank">👀 Veure carrusel</a>
+      <a href="../index.html" target="_blank">📟 Mesurador de soroll</a>
+      <a href="./analytics.html" class="active">📊 Quadre de comandament</a>
+    </nav>
+
+    <div class="side-box">
+      <h4>Exporta</h4>
+      <div class="row">
+        <button id="expCsv" class="btn">CSV</button>
+        <button id="expJson" class="btn">JSON</button>
+      </div>
+      <p class="muted small">Baixa els datasets visibles.</p>
+    </div>
+  </aside>
+
+  <!-- Principal -->
+  <main class="main">
+    <header class="bar">
+      <h2>Ús i estat</h2>
+      <div class="row">
+        <label class="row">
+          <span class="muted">Vigència (mesos) per a caducitat</span>
+          <input id="monthsInput" type="number" class="input" min="1" max="60" step="1" value="12" style="width:84px">
+        </label>
+        <button id="btnRefresh" class="btn">Actualitza</button>
+      </div>
+    </header>
+
+    <!-- KPIs -->
+    <section class="kpis" id="kpis">
+      <div class="kpi"><h3>Actius (carrusel)</h3><div class="big" id="kpiActius">—</div><div class="muted">Cartells/protocols publicats</div></div>
+      <div class="kpi"><h3>Consultes totals</h3><div class="big" id="kpiConsultes">—</div><div class="muted">Logs de visualització</div></div>
+      <div class="kpi"><h3>Docs pujats</h3><div class="big" id="kpiDocs">—</div><div class="muted">Total a l’admin</div></div>
+      <div class="kpi"><h3>Caducats / Propers 30d</h3><div class="big" id="kpiCad">—</div><div class="muted">Segons “vigència (mesos)”</div></div>
+    </section>
+
+    <!-- Gràfiques -->
+    <section class="grid split" style="margin-bottom:14px">
+      <div class="card">
+        <h3>Top 5 més consultats</h3>
+        <canvas id="chartTop"></canvas>
+      </div>
+
+      <div class="card">
+        <h3>Ús per servei (consultes)</h3>
+        <canvas id="chartServeis"></canvas>
+      </div>
+
+      <div class="card">
+        <h3>Evolució temporal (consultes / dia)</h3>
+        <canvas id="chartSèrie"></canvas>
+      </div>
+
+      <div class="card">
+        <h3>Per tipus (documents)</h3>
+        <canvas id="chartTipus"></canvas>
+      </div>
+    </section>
+
+    <!-- Llistat detallat -->
+    <section class="card">
+      <h3>Llistat de documents</h3>
+      <div class="table-tools">
+        <input id="searchInput" class="input search" type="search" placeholder="Cerca títol, codi, servei, usuari…">
+        <select id="filterServei" class="input">
+          <option value="">Tots els serveis</option>
+          <option>Hospitalització</option>
+          <option>Urgències</option>
+          <option>Àrea Quirúrgica</option>
+          <option>Biotecnologia</option>
+          <option>Consultes Externes</option>
+        </select>
+        <select id="filterEstat" class="input">
+          <option value="">Tots els estats</option>
+          <option value="ok">En termini</option>
+          <option value="soon">Proper a caducar (&lt;30d)</option>
+          <option value="overdue">Caducat</option>
+        </select>
+      </div>
+
+      <div class="table-wrap" style="margin-top:8px">
+        <table>
+          <thead>
+            <tr>
+              <th>Títol</th>
+              <th>Tipus</th>
+              <th>Servei</th>
+              <th class="nowrap">Publicat</th>
+              <th>Usuari</th>
+              <th class="nowrap">Caduca el</th>
+              <th>Estat</th>
+              <th>Consultes</th>
+            </tr>
+          </thead>
+          <tbody id="taulaDocs">
+            <tr><td colspan="8" class="muted">Carregant…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="row" style="margin-top:8px">
+        <button id="expTableCsv" class="btn">Exporta taula (CSV)</button>
+      </div>
+    </section>
+
+    <!-- Últimes publicacions (resum ràpid) -->
+    <section class="grid" style="margin-top:14px">
+      <div class="card">
+        <h3>Últimes 5 publicacions</h3>
+        <table>
+          <thead><tr><th>Títol</th><th>Autor</th><th>Data</th></tr></thead>
+          <tbody id="taulaÚltimes">
+            <tr><td colspan="3" class="muted">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Detall de caducitat</h3>
+        <table>
+          <thead><tr><th>Estat</th><th>Quantitat</th></tr></thead>
+          <tbody id="taulaCad">
+            <tr><td class="muted">—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Email a l’inici -->
+  <script type="module">
+    const setEmail = async () => {
+      try {
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        document.getElementById('currentUserEmail').textContent = user?.email || '—';
+      } catch {}
+    };
+    if (document.body.classList.contains('auth-ready')) setEmail();
+    else document.addEventListener('auth-ready', setEmail, { once:true });
+  </script>
+
+  <!-- Lògica del dashboard -->
+  <script type="module" src="./analytics.js"></script>
+</body>
+</html>

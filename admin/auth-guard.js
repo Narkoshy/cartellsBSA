@@ -1,47 +1,43 @@
-// admin/auth-guard.js — resiliente (ESM + UMD) y sin hard-refresh
+// admin/auth-guard.js — resiliente (ESM + UMD) i sense hard‑refresh
 
-// === Ajustes (puedes inyectar por window.ENV_* en prod) ===
+// === Ajustos (poden venir per window.ENV_* en prod) ===
 const SUPABASE_URL  = (window.ENV_SUPABASE_URL  || "https://wnkgzpgagprncbtqnzrw.supabase.co").trim();
 const SUPABASE_ANON = (window.ENV_SUPABASE_ANON || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indua2d6cGdhZ3BybmNidHFuenJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjQyNTQsImV4cCI6MjA3MDc0MDI1NH0.sXkV7N9Y2nDOTA3tZpWkAhs2SCGriXJWyieglxxFIRY").trim();
 
-// === Utilidades básicas ===
-const isLogin = /\/login\.html$/i.test(location.pathname);
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(location.origin);
+// === Utils ===
+const isLogin      = /\/login\.html$/i.test(location.pathname);
+const sleep        = (ms) => new Promise(r => setTimeout(r, ms));
+const isLocalhost  = /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(location.origin);
 
-// Evita doble inicialización si se incluye dos veces accidentalmente
+// Evita doble arrencada si s'inclou dues vegades accidentalment
 if (window.__AUTH_GUARD_BOOTED__) {
-  // Ya en marcha: no hacer nada más (pero expón el cliente si existe)
-  if (window.supabaseClient) {
-    exposeClient(window.supabaseClient);
-  }
+  // Ja està en marxa: només exposem el client si existeix
+  if (window.supabaseClient) exposeClient(window.supabaseClient);
 } else {
   window.__AUTH_GUARD_BOOTED__ = true;
   boot().catch(err => {
-    console.error("[auth-guard] fallo en boot:", err);
-    // En caso extremo deja ver la página (útil para depurar)
-    window.__AUTH_OK__?.();
+    console.error("[auth-guard] error en boot:", err);
+    // En cas extrem permet veure la pàgina (útil per depurar)
+    safeAuthOk();
   });
 }
 
-// === Arranque principal ===
+// === Arrencada principal ===
 async function boot() {
   const client = await getClient();
   exposeClient(client);
 
   if (isLogin) {
-    // Si ya hay sesión, vete a redirect o index
+    // Si ja hi ha sessió → redirigeix a on toqui
     const { data: { session } } = await client.auth.getSession();
     if (session?.user) {
       const params = new URLSearchParams(location.search);
       const to = params.get("redirect") || "./index.html";
-      // Evita loop si ya apunta al mismo lugar
       if (!samePathAsCurrent(to)) location.replace(to);
       return;
     }
-    // Mostrar login
-    window.__AUTH_OK__?.();
-    // Escucha cambios por si el login ocurre en caliente
+    // Mostra el login i escolta canvis
+    safeAuthOk();
     client.auth.onAuthStateChange((_event, s) => {
       if (s?.user) {
         const params = new URLSearchParams(location.search);
@@ -52,62 +48,61 @@ async function boot() {
     return;
   }
 
-  // Páginas protegidas (admin/*): espera sesión estable
+  // Pàgines protegides: espera sessió “estable”
   const session = await getStableSession(client, 8, 150);
   if (session?.user) {
     window.__SESSION_EMAIL__ = session.user.email || "—";
     safeAuthOk();
   } else {
-    // Redirige a login con vuelta
+    // Sense sessió → a login amb retorn
     const redirect = encodeURIComponent(location.pathname + location.search);
     location.replace(`./login.html?redirect=${redirect}`);
     return;
   }
 
-  // Reacciona a cambios (sign out, etc.)
+  // Reacciona a canvis (p. ex. signOut)
   client.auth.onAuthStateChange((event, sessionNow) => {
-    if (event === "SIGNED_OUT" || !sessionNow) {
+    if (event === "SIGNED_OUT" || !sessionNow?.user) {
       const redirect = encodeURIComponent(location.pathname + location.search);
       location.replace(`./login.html?redirect=${redirect}`);
     }
   });
 }
 
-// === Carga del SDK de Supabase (intenta ESM y cae a UMD) ===
+// === Carrega del SDK de Supabase (intenta ESM i cau a UMD) ===
 async function getCreateClient() {
-  // 0) ¿Ya existe el global?
+  // 0) Global ja present?
   if (window.supabase?.createClient) return window.supabase.createClient;
 
-  // 1) ESM con jsDelivr (+esm da CORS correcto). Pin de versión:
+  // 1) ESM via jsDelivr (+esm dona CORS correcte). Pina la versió.
   try {
-    const ver = "2.55.0"; // fija si quieres reproducibilidad
+    const ver = "2.55.0"; // fixa si vols reproduïbilitat
     const cacheBust = isLocalhost ? `?v=${Date.now()}` : "";
     const mod = await import(`https://cdn.jsdelivr.net/npm/@supabase/supabase-js@${ver}/+esm${cacheBust}`);
     if (mod?.createClient) return mod.createClient;
   } catch (e) {
-    console.warn("[auth-guard] ESM import falló, probando UMD…", e);
+    console.warn("[auth-guard] import ESM ha fallat, provant UMD…", e);
   }
 
   // 2) Fallback UMD (window.supabase)
   await new Promise((resolve, reject) => {
     const s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-    // En dev, fuerza refresco si hay caché agresiva del navegador
-    if (isLocalhost) s.src += `?v=${Date.now()}`;
+    if (isLocalhost) s.src += `?v=${Date.now()}`; // evita caché agressiva en dev
     s.async = true;
     s.onload = resolve;
-    s.onerror = () => reject(new Error("No se pudo cargar supabase UMD"));
+    s.onerror = () => reject(new Error("No s'ha pogut carregar supabase UMD"));
     document.head.appendChild(s);
   });
 
   if (!window.supabase?.createClient) {
-    throw new Error("supabase global no disponible tras UMD");
+    throw new Error("supabase global no disponible després d'UMD");
   }
   return window.supabase.createClient;
 }
 
 async function getClient() {
-  // Reutiliza el mismo cliente entre páginas admin/*
+  // Reutilitza el mateix client a tot admin/*
   if (window.supabaseClient?.auth) return window.supabaseClient;
 
   const createClient = await getCreateClient();
@@ -116,10 +111,10 @@ async function getClient() {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storage: window.localStorage, // explícito
+      storage: window.localStorage,
     },
     global: {
-      // Opcional: evita que fetch guarde en cache en dev
+      // En dev, evita que fetch deixi res en caché
       fetch: (url, opts = {}) => {
         const noCache = isLocalhost ? { cache: "no-store" } : {};
         return fetch(url, { ...opts, ...noCache });
@@ -131,25 +126,25 @@ async function getClient() {
   return client;
 }
 
-// === Helpers de sesión/DOM ===
+// === Helpers de sessió / DOM ===
 async function getStableSession(client, maxAttempts = 6, delayMs = 120) {
   for (let i = 0; i < maxAttempts; i++) {
     const { data: { session } } = await client.auth.getSession();
-    if (session) return session;
+    if (session?.user) return session;
     await sleep(delayMs);
   }
   return null;
 }
 
 function safeAuthOk() {
-  // Llama a __AUTH_OK__ solo una vez
+  // Crida __AUTH_OK__ només una vegada (el callback posa body.auth-ready)
   if (!document.body.classList.contains("auth-ready")) {
     window.__AUTH_OK__?.();
   }
 }
 
 function exposeClient(client) {
-  // Idempotente; algunos scripts esperan esto
+  // Idempotent; alguns scripts ho esperen
   window.supabaseClient = client;
 }
 
