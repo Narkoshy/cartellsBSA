@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin · Quadre de comandament</title>
 
-  <!-- Bloqueig visual fins que hi ha sessió -->
   <style>
     html{ background:#0b1220; }
     body{ visibility:hidden; }
@@ -28,44 +27,23 @@
   <!-- Chart.js per a les gràfiques -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 
-  <!-- Estils locals del dashboard -->
   <style>
     .bar h2 { margin:0 }
-    .kpis{
-      display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-      gap:12px; margin:14px 0;
-    }
-    .kpi{
-      background:rgba(255,255,255,.03);
-      border:1px solid rgba(255,255,255,.1);
-      border-radius:14px; padding:14px;
-      display:flex; flex-direction:column; gap:6px;
-    }
+    .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:14px 0; }
+    .kpi{ background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:6px; }
     .kpi h3{ margin:0; font-size:14px; color:#94a3b8 }
     .kpi .big{ font-size:28px; font-weight:800 }
-    .grid{
-      display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
-    }
-    .card{
-      background:rgba(255,255,255,.03);
-      border:1px solid rgba(255,255,255,.1);
-      border-radius:14px; padding:14px;
-    }
+    .grid{ display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+    .card{ background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:14px; }
     .card h3{ margin:0 0 10px 0; font-size:16px }
     .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
-    .btn{
-      appearance:none; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06);
-      color:inherit; padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700; font-size:13px;
-    }
+    .btn{ appearance:none; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:inherit; padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700; font-size:13px; }
     .btn.primary{ background:#3aa4ff; color:#001428; border:none }
     table{ width:100%; border-collapse:collapse; font-size:14px; }
     th,td{ padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.08) }
     th{ text-align:left; color:#94a3b8; font-weight:600 }
     .muted{ color:#94a3b8 }
-    .input{
-      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
-      color:inherit; border-radius:10px; padding:8px 10px; min-height:38px;
-    }
+    .input{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); color:inherit; border-radius:10px; padding:8px 10px; min-height:38px; }
     .split{ display:grid; gap:14px; grid-template-columns:1.5fr 1fr }
     @media (max-width: 1000px){ .split{ grid-template-columns:1fr } }
     .table-tools{ display:flex; gap:8px; align-items:center; margin:8px 0 0 }
@@ -79,7 +57,6 @@
   </style>
 </head>
 <body>
-  <!-- Lateral -->
   <aside class="side">
     <h1>🛠 Admin</h1>
     <div class="muted small" style="margin:6px 0 10px">
@@ -102,7 +79,6 @@
     </div>
   </aside>
 
-  <!-- Principal -->
   <main class="main">
     <header class="bar">
       <h2>Ús i estat</h2>
@@ -132,12 +108,12 @@
 
       <div class="card">
         <h3>Ús per servei (consultes)</h3>
-        <canvas id="chartServeis"></canvas>
+        <canvas id="chartServeis"></canvas> <!-- <- sin acentos y nombre estable -->
       </div>
 
       <div class="card">
         <h3>Evolució temporal (consultes / dia)</h3>
-        <canvas id="chartSèrie"></canvas>
+        <canvas id="chartSeries"></canvas>  <!-- <- era chartSèrie -->
       </div>
 
       <div class="card">
@@ -192,13 +168,13 @@
       </div>
     </section>
 
-    <!-- Últimes publicacions (resum ràpid) -->
+    <!-- Últimes publicacions -->
     <section class="grid" style="margin-top:14px">
       <div class="card">
         <h3>Últimes 5 publicacions</h3>
         <table>
           <thead><tr><th>Títol</th><th>Autor</th><th>Data</th></tr></thead>
-          <tbody id="taulaÚltimes">
+          <tbody id="taulaUltimes"><!-- <- sin acento en la ID -->
             <tr><td colspan="3" class="muted">—</td></tr>
           </tbody>
         </table>
