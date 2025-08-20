@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin · Configuració i Auditoria</title>
+
+  <!-- Bloqueo visual fins que hi ha sessió -->
+  <style>
+    html{ background:#0b1220; }
+    body{ visibility:hidden; }
+    body.auth-ready{ visibility:visible; }
+  </style>
+
+  <link rel="stylesheet" href="admin.css" />
+
+  <!-- Auth ready callback (el guard la cridarà quan la sessió sigui vàlida) -->
+  <script>
+    window.__AUTH_OK__ = () => {
+      document.body.classList.add('auth-ready');
+      document.dispatchEvent(new CustomEvent('auth-ready'));
+    };
+  </script>
+
+  <!-- Auth guard (crea window.supabaseClient i gestiona redireccions) -->
+  <script type="module" src="./auth-guard.js"></script>
+
+  <!-- Estils locals mínims per a la vista d'auditoria -->
+  <style>
+    .bar h2 { margin: 0; }
+    .audit-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+      gap:14px;
+      margin-top:12px;
+    }
+    .card{
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:14px;
+      padding:14px;
+      display:flex; flex-direction:column; gap:10px;
+    }
+    .card h3{ margin:0 0 2px 0 }
+    .chip{
+      display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
+      font-size:12px; font-weight:700; border:1px solid transparent;
+    }
+    .chip.ok{ background:rgba(34,197,94,.15); color:#86efac; border-color:rgba(34,197,94,.35) }
+    .chip.warn{ background:rgba(245,158,11,.15); color:#fcd34d; border-color:rgba(245,158,11,.35) }
+    .chip.err{ background:rgba(239,68,68,.15); color:#fca5a5; border-color:rgba(239,68,68,.35) }
+    .checks{ display:flex; flex-direction:column; gap:8px }
+    .check{
+      display:flex; align-items:flex-start; gap:10px;
+      background:rgba(255,255,255,.02);
+      border:1px dashed rgba(255,255,255,.08);
+      border-radius:10px; padding:8px 10px;
+    }
+    .check .title{ font-weight:700; }
+    .check .desc{ font-size:12px; opacity:.8 }
+    .check .right{ margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+    .btn-sm{
+      appearance:none; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06);
+      color:inherit; padding:6px 10px; border-radius:10px; cursor:pointer; font-weight:700; font-size:12px;
+    }
+    .toolbar{
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0 4px;
+    }
+    .muted.small{ font-size:12px; opacity:.8 }
+    .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  </style>
+</head>
+<body>
+  <!-- Lateral -->
+  <aside class="side">
+    <h1>🛠 Admin</h1>
+    <div class="muted small" style="margin:6px 0 10px">
+      Sessió: <span id="currentUserEmail">—</span>
+    </div>
+    <nav>
+      <a href="./index.html">Cartells / Protocols</a>
+      <a href="../carteles.html" target="_blank">👀 Obrir carrusel</a>
+      <a href="../index.html" target="_blank">📟 Medidor de soroll</a>
+      <a href="./config.html" class="active">⚙️ Configuració</a>
+    </nav>
+
+    <div class="side-box">
+      <h4>🔍 Auditoria ràpida</h4>
+      <p class="muted small">Executa comprovacions bàsiques de cada pàgina.</p>
+      <button id="btnAuditAll" class="primary" style="width:100%">▶ Revisar tot</button>
+    </div>
+  </aside>
+
+  <!-- Cos principal -->
+  <main class="main">
+    <header class="bar">
+      <h2>Configuració i Auditoria</h2>
+    </header>
+
+    <section class="toolbar" aria-label="Eines globals">
+      <button id="btnExport" class="btn-sm">⬇ Exportar informe (JSON)</button>
+      <span id="summaryChip" class="chip ok" aria-live="polite">Global: OK</span>
+      <span class="muted small">Consell: executa “Revisar tot” després de desplegar a Netlify.</span>
+    </section>
+
+    <section>
+      <div class="audit-grid" id="auditGrid" aria-live="polite">
+        <!-- Targetes injectades per JS -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Plantilla de targeta d'auditoria -->
+  <template id="cardTpl">
+    <div class="card" data-app="">
+      <div style="display:flex; align-items:center; gap:10px; justify-content:space-between">
+        <div>
+          <h3 class="app-name">Nom app</h3>
+          <div class="muted small app-path">/ruta</div>
+        </div>
+        <div class="right">
+          <span class="chip ok app-chip">OK</span>
+          <button class="btn-sm app-run" type="button">Revisar ara</button>
+        </div>
+      </div>
+      <div class="checks"></div>
+    </div>
+  </template>
+
+  <!-- Script mínim per pintar email d'usuari quan hi ha sessió -->
+  <script type="module">
+    const setEmail = async () => {
+      try {
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        document.getElementById('currentUserEmail').textContent = user?.email || '—';
+      } catch { /* noop */ }
+    };
+    if (document.body.classList.contains('auth-ready')) setEmail();
+    else document.addEventListener('auth-ready', setEmail, { once:true });
+  </script>
+
+  <!-- Lògica de l'auditoria (usa el template anterior) -->
+  <script type="module" src="./config.js"></script>
+</body>
+</html>

@@ -4,75 +4,77 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin · Cartells i Protocols</title>
-  <link rel="stylesheet" href="admin.css" />
- <script type="module" src="./auth-guard.js"></script>
-  <!-- Estils mínimos para la barra de filtro / alertes (no invade admin.css) -->
-  <style>
-    .filter-bar{
-      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-      margin:12px 0 18px;
-    }
-    .filter-bar .field{
-      display:flex; align-items:center; gap:6px;
-      background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12);
-      padding:6px 10px; border-radius:10px;
-    }
-    .filter-bar select, .filter-bar input[type="search"], .filter-bar input[type="number"]{
-      background:transparent; color:inherit; border:none; outline:none; min-height:36px;
-    }
-    .filter-bar .btn{
-      appearance:none; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06);
-      color:inherit; padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700;
-    }
-    .filter-meta{ font-size:12px; opacity:.8 }
 
-    .alerts{
-      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-      background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12);
-      padding:10px 12px; border-radius:12px; margin:8px 0 16px;
-    }
-    .pill{
-      display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
-      border:1px solid transparent; font-weight:700; font-size:13px;
-    }
+  <!-- Evita indexación y reduce caching del HTML en dev -->
+  <meta name="robots" content="noindex,nofollow" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <!-- Bloqueo visual hasta autenticación -->
+  <style>
+    html{ background:#0b1220; }
+    body{ visibility:hidden; }
+    body.auth-ready{ visibility:visible; }
+    /* Estils mínimos para la barra de filtro / alertes (no invade admin.css) */
+    .filter-bar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 18px; }
+    .filter-bar .field{ display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.12); padding:6px 10px; border-radius:10px; }
+    .filter-bar select,.filter-bar input[type="search"],.filter-bar input[type="number"]{ background:transparent; color:inherit; border:none; outline:none; min-height:36px; }
+    .filter-bar .btn{ appearance:none; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:inherit; padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700; }
+    .filter-meta{ font-size:12px; opacity:.8 }
+    .alerts{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); padding:10px 12px; border-radius:12px; margin:8px 0 16px; }
+    .pill{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid transparent; font-weight:700; font-size:13px; }
     .pill.ok{ background:rgba(34,197,94,.15); color:#86efac; border-color:rgba(34,197,94,.35) }
     .pill.soon{ background:rgba(245,158,11,.15); color:#fcd34d; border-color:rgba(245,158,11,.35) }
     .pill.overdue{ background:rgba(239,68,68,.15); color:#fca5a5; border-color:rgba(239,68,68,.35) }
-
-    /* Badge dentro de cada ítem (si tu admin.css no tiene uno) */
-    .rev-badge{
-      display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
-      border:1px solid transparent; font-weight:700; font-size:12px; white-space:nowrap;
-    }
+    .rev-badge{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid transparent; font-weight:700; font-size:12px; white-space:nowrap; }
     .rev-ok{ background:rgba(34,197,94,.15); color:#86efac; border-color:rgba(34,197,94,.35) }
     .rev-soon{ background:rgba(245,158,11,.15); color:#fcd34d; border-color:rgba(245,158,11,.35) }
     .rev-overdue{ background:rgba(239,68,68,.15); color:#fca5a5; border-color:rgba(239,68,68,.35) }
-
-    /* Pequeños ajustes de layout en la fila inferior del ítem */
     .row.between.wrap { gap:8px; }
     .row .rev-slot { margin-left:auto; }
+    noscript .nojs { display:block; color:#fff; background:#9b1c1c; padding:8px 12px; border-radius:6px; margin:10px 0; }
   </style>
+
+  <!-- CSS principal con cache-busting suave -->
+  <link rel="stylesheet" href="admin.css?v=2025-08-19" />
+
+  <!-- Hook que invocará auth-guard cuando haya sesión válida -->
+  <script>
+    window.__AUTH_OK__ = function () {
+      if (!document.body.classList.contains('auth-ready')) {
+        document.body.classList.add('auth-ready');
+        document.dispatchEvent(new CustomEvent('auth-ready'));
+      }
+    };
+  </script>
+
+  <!-- Guard de autenticación (ESM con fallback interno) -->
+  <script type="module" src="./auth-guard.js?v=2025-08-19"></script>
 </head>
 <body>
+  <noscript>
+    <div class="nojs">Cal JavaScript per a usar l’àrea d’administració.</div>
+  </noscript>
+
   <!-- Lateral -->
   <aside class="side">
     <h1>🛠 Admin</h1>
- <div class="muted small" style="margin:6px 0 10px">
+    <div class="muted small" style="margin:6px 0 10px">
       Sessió: <span id="currentUserEmail">—</span>
-
     </div>
     <nav>
       <a href="#" class="active">Cartells / Protocols</a>
       <a href="../carteles.html" target="_blank">👀 Obrir carrusel</a>
       <a href="../index.html" target="_blank">📟 Medidor de soroll</a>
-      <a href="#" title="Config properament">⚙️ Configuració (properament)</a>
+      <a href="./config.html" title="Configuració">⚙️ Configuració</a>
     </nav>
 
     <div class="side-box">
       <h4>📦 Estat de publicació</h4>
       <p class="muted small">Els canvis es guarden localment. Prem “Publica canvis” per fer-los visibles al carrusel.</p>
       <button id="btnPublish" class="primary" style="width:100%">💾 Publica canvis</button>
-<button id="logoutBtn" class="secondary" style="width:100%; margin-top:8px" onclick="window.__auth?.signOut()">Tancar sessió</button>
+      <button id="logoutBtn" class="secondary" style="width:100%; margin-top:8px">Tancar sessió</button>
     </div>
   </aside>
 
@@ -214,8 +216,6 @@
           </div>
 
           <span class="muted fileinfo"></span>
-
-          <!-- Espai per al badge de revisió -->
           <span class="rev-slot"></span>
         </div>
       </div>
@@ -229,10 +229,54 @@
     </li>
   </template>
 
-  <script src="admin.js"></script>
+  <!-- Carga DIFERIDA del JS principal una vez auth-ready (evita necesidad de hard refresh) -->
+  <script type="module">
+    // Espera la marca que pone auth-guard
+    const loadAdmin = () => {
+      // añade cache-busting para evitar versiones antiguas en dev
+      const s = document.createElement('script');
+      s.src = `admin.js?v=${Date.now()}`;
+      s.defer = true;
+      document.body.appendChild(s);
 
-  <!-- Script de filtres client (inclou estat revisió) -->
+      // Módulo pequeño para email y logout, ya con cliente listo
+      (async () => {
+        // Espera a que auth-guard haya creado el cliente global
+        const waitForClient = async (tries=50) => {
+          for (let i=0;i<tries;i++){
+            if (window.supabaseClient) return window.supabaseClient;
+            await new Promise(r=>setTimeout(r,50));
+          }
+          return null;
+        };
+        const supabase = await waitForClient();
+        const emailEl  = document.getElementById('currentUserEmail');
+        const logoutBtn= document.getElementById('logoutBtn');
+
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          emailEl.textContent = user?.email || '—';
+        } catch { emailEl.textContent = '—'; }
+
+        logoutBtn?.addEventListener('click', async () => {
+          try { await supabase.auth.signOut(); } catch(e) { console.warn('signOut:', e); }
+          try { localStorage.clear(); sessionStorage.clear(); } catch {}
+          const back = encodeURIComponent(location.pathname);
+          location.href = `./login.html?redirect=${back}`;
+        });
+      })();
+    };
+
+    if (document.body.classList.contains('auth-ready')) {
+      loadAdmin();
+    } else {
+      document.addEventListener('auth-ready', loadAdmin, { once:true });
+    }
+  </script>
+
+  <!-- Filtres client (inclou estat revisió) -->
   <script>
+    // Este bloque no depende de la sesión; actúa sobre el DOM cuando los items existan.
     (function(){
       const $  = (s, r=document)=>r.querySelector(s);
       const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
@@ -245,7 +289,6 @@
       const monthsInp = $("#reviewMonths");
       const aOk = $("#aOk"), aSoon = $("#aSoon"), aOver = $("#aOverdue");
 
-      // Carga/guarda política global de meses
       const savedMonths = Number(localStorage.getItem("review.months") || 12);
       monthsInp.value = Math.max(1, savedMonths);
       document.documentElement.style.setProperty("--review-months", monthsInp.value);
@@ -253,12 +296,10 @@
       monthsInp.addEventListener("change", ()=>{
         const v = Math.max(1, Number(monthsInp.value||12));
         localStorage.setItem("review.months", String(v));
-        // Pide a admin.js que re-renderice con nueva política:
         document.dispatchEvent(new CustomEvent("reviewMonthsChanged", { detail: { months: v }}));
       });
 
       const norm = s => (s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
-
       function getItemService(li){ return li.querySelector(".origin")?.value || ""; }
       function getItemTextHaystack(li){
         const t = li.querySelector(".title")?.value || "";
@@ -296,7 +337,6 @@
         aOver.textContent = `Caducats: ${cOver}`;
       }
 
-      // Re-aplica filtros tras render de admin.js
       const mo = new MutationObserver(()=> applyFilters());
       mo.observe(itemsUL, { childList:true, subtree:true });
 
@@ -307,7 +347,6 @@
         svcSel.value = "tots"; txtInp.value = ""; revSel.value = "all"; applyFilters();
       });
 
-      // Reaplicar cuando cambie el origen o cualquier campo del ítem (por seguridad)
       document.addEventListener("change", (e)=>{
         if (e.target && e.target.closest && e.target.closest("#items")) applyFilters();
       });
@@ -316,30 +355,5 @@
       document.addEventListener("DOMContentLoaded", applyFilters);
     })();
   </script>
-<script type="module">
-  import { createClient } from 'https://esm.sh/@supabase/supabase-js';
-
-  // Usa el cliente creado por auth-guard.js si existe
-  const supabase = window.supabaseClient ?? createClient(
-    'https://wnkgzpgagprncbtqnzrw.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indua2d6cGdhZ3BybmNidHFuenJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjQyNTQsImV4cCI6MjA3MDc0MDI1NH0.sXkV7N9Y2nDOTA3tZpWkAhs2SCGriXJWyieglxxFIRY'
-  );
-
-  const btn = document.getElementById('logoutBtn');
-  if (btn) {
-    btn.addEventListener('click', async () => {
-      try {
-        await supabase.auth.signOut();
-      } catch (e) {
-        console.warn('signOut error:', e);
-      } finally {
-        // Limpia cachés locales por si acaso
-        try { localStorage.clear(); sessionStorage.clear(); } catch {}
-        // Redirige al login que está en la misma carpeta admin/
-        window.location.href = './login.html';
-      }
-    });
-  }
-</script>
 </body>
 </html>

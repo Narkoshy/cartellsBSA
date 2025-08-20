@@ -1,91 +1,161 @@
-// admin/auth-guard.js
-// Bloquea acceso directo a /admin/* si no hay sesión o si el usuario no es admin.
+// admin/auth-guard.js — resiliente (ESM + UMD) y sin hard-refresh
 
-const FALLBACK_SUPABASE_URL  = "https://wnkgzpgagprncbtqnzrw.supabase.co";
-const FALLBACK_SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indua2d6cGdhZ3BybmNidHFuenJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjQyNTQsImV4cCI6MjA3MDc0MDI1NH0.sXkV7N9Y2nDOTA3tZpWkAhs2SCGriXJWyieglxxFIRY";
+// === Ajustes (puedes inyectar por window.ENV_* en prod) ===
+const SUPABASE_URL  = (window.ENV_SUPABASE_URL  || "https://wnkgzpgagprncbtqnzrw.supabase.co").trim();
+const SUPABASE_ANON = (window.ENV_SUPABASE_ANON || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indua2d6cGdhZ3BybmNidHFuenJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjQyNTQsImV4cCI6MjA3MDc0MDI1NH0.sXkV7N9Y2nDOTA3tZpWkAhs2SCGriXJWyieglxxFIRY").trim();
 
-// Preferimos variables inyectadas en runtime/build
-const SB_URL  = (window.__SB && window.__SB.url)  || FALLBACK_SUPABASE_URL;
-const SB_ANON = (window.__SB && window.__SB.anon) || FALLBACK_SUPABASE_ANON;
+// === Utilidades básicas ===
+const isLogin = /\/login\.html$/i.test(location.pathname);
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(location.origin);
 
-async function ensureSupabaseReady() {
-  if (!window.supabase) {
-    await new Promise((res, rej) => {
-      const s = document.createElement("script");
-      s.src = "https://unpkg.com/@supabase/supabase-js@2";
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
+// Evita doble inicialización si se incluye dos veces accidentalmente
+if (window.__AUTH_GUARD_BOOTED__) {
+  // Ya en marcha: no hacer nada más (pero expón el cliente si existe)
+  if (window.supabaseClient) {
+    exposeClient(window.supabaseClient);
   }
-  return window.supabase.createClient(SB_URL, SB_ANON);
+} else {
+  window.__AUTH_GUARD_BOOTED__ = true;
+  boot().catch(err => {
+    console.error("[auth-guard] fallo en boot:", err);
+    // En caso extremo deja ver la página (útil para depurar)
+    window.__AUTH_OK__?.();
+  });
 }
 
-function redirectToLogin() {
-  const here = encodeURIComponent(location.pathname + location.search);
-  location.replace(`/admin/login.html?redirect=${here}`);
+// === Arranque principal ===
+async function boot() {
+  const client = await getClient();
+  exposeClient(client);
+
+  if (isLogin) {
+    // Si ya hay sesión, vete a redirect o index
+    const { data: { session } } = await client.auth.getSession();
+    if (session?.user) {
+      const params = new URLSearchParams(location.search);
+      const to = params.get("redirect") || "./index.html";
+      // Evita loop si ya apunta al mismo lugar
+      if (!samePathAsCurrent(to)) location.replace(to);
+      return;
+    }
+    // Mostrar login
+    window.__AUTH_OK__?.();
+    // Escucha cambios por si el login ocurre en caliente
+    client.auth.onAuthStateChange((_event, s) => {
+      if (s?.user) {
+        const params = new URLSearchParams(location.search);
+        const to = params.get("redirect") || "./index.html";
+        if (!samePathAsCurrent(to)) location.replace(to);
+      }
+    });
+    return;
+  }
+
+  // Páginas protegidas (admin/*): espera sesión estable
+  const session = await getStableSession(client, 8, 150);
+  if (session?.user) {
+    window.__SESSION_EMAIL__ = session.user.email || "—";
+    safeAuthOk();
+  } else {
+    // Redirige a login con vuelta
+    const redirect = encodeURIComponent(location.pathname + location.search);
+    location.replace(`./login.html?redirect=${redirect}`);
+    return;
+  }
+
+  // Reacciona a cambios (sign out, etc.)
+  client.auth.onAuthStateChange((event, sessionNow) => {
+    if (event === "SIGNED_OUT" || !sessionNow) {
+      const redirect = encodeURIComponent(location.pathname + location.search);
+      location.replace(`./login.html?redirect=${redirect}`);
+    }
+  });
 }
 
-function allowPage(user) {
-  // Mostrar la página y “exponer” quien eres si quieres
-  document.body.style.visibility = "visible";
-  const span = document.getElementById("currentUserEmail");
-  if (span && user?.email) span.textContent = user.email;
-}
+// === Carga del SDK de Supabase (intenta ESM y cae a UMD) ===
+async function getCreateClient() {
+  // 0) ¿Ya existe el global?
+  if (window.supabase?.createClient) return window.supabase.createClient;
 
-function isAdmin(user) {
-  if (!user) return false;
-
-  // 1) app_metadata.roles (p. ej. ["admin"])
-  const roles = user.app_metadata?.roles || user.app_metadata?.role || [];
-  if (Array.isArray(roles) && roles.includes("admin")) return true;
-  if (typeof roles === "string" && roles === "admin") return true;
-
-  // 2) user_metadata.role === "admin"
-  if (user.user_metadata?.role === "admin") return true;
-
-  // 3) fallback: dominio permitido (opcional)
-  // return user.email?.endsWith("@tu-hospital.cat");
-
-  return false;
-}
-
-(async () => {
+  // 1) ESM con jsDelivr (+esm da CORS correcto). Pin de versión:
   try {
-    const sb = await ensureSupabaseReady();
-
-    // 1) Sesión presente?
-    const { data: sessData } = await sb.auth.getSession();
-    const session = sessData?.session;
-    if (!session) return redirectToLogin();
-
-    // 2) Usuario + rol
-    const { data: userData, error } = await sb.auth.getUser();
-    if (error || !userData?.user) return redirectToLogin();
-
-    if (!isAdmin(userData.user)) {
-      // Opcional: cerrar sesión si no es admin
-      try { await sb.auth.signOut(); } catch {}
-      return redirectToLogin();
-    }
-
-    // 3) Todo OK → mostramos
-    allowPage(userData.user);
-
-    // 4) Auto-refresco del token/sesión: si expira, vuelve al login
-    sb.auth.onAuthStateChange((_ev, newSession) => {
-      if (!newSession) redirectToLogin();
-    });
-
-    // 5) Botón “tancar sessió” global (si existe)
-    const logoutBtn = document.getElementById("btnLogout") || document.querySelector('[data-action="logout"]');
-    if (logoutBtn) {
-      logoutBtn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        try { await sb.auth.signOut(); } finally { redirectToLogin(); }
-      });
-    }
+    const ver = "2.55.0"; // fija si quieres reproducibilidad
+    const cacheBust = isLocalhost ? `?v=${Date.now()}` : "";
+    const mod = await import(`https://cdn.jsdelivr.net/npm/@supabase/supabase-js@${ver}/+esm${cacheBust}`);
+    if (mod?.createClient) return mod.createClient;
   } catch (e) {
-    console.error("Auth guard error:", e);
-    redirectToLogin();
+    console.warn("[auth-guard] ESM import falló, probando UMD…", e);
   }
-})();
+
+  // 2) Fallback UMD (window.supabase)
+  await new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+    // En dev, fuerza refresco si hay caché agresiva del navegador
+    if (isLocalhost) s.src += `?v=${Date.now()}`;
+    s.async = true;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("No se pudo cargar supabase UMD"));
+    document.head.appendChild(s);
+  });
+
+  if (!window.supabase?.createClient) {
+    throw new Error("supabase global no disponible tras UMD");
+  }
+  return window.supabase.createClient;
+}
+
+async function getClient() {
+  // Reutiliza el mismo cliente entre páginas admin/*
+  if (window.supabaseClient?.auth) return window.supabaseClient;
+
+  const createClient = await getCreateClient();
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage, // explícito
+    },
+    global: {
+      // Opcional: evita que fetch guarde en cache en dev
+      fetch: (url, opts = {}) => {
+        const noCache = isLocalhost ? { cache: "no-store" } : {};
+        return fetch(url, { ...opts, ...noCache });
+      },
+    },
+  });
+
+  window.supabaseClient = client;
+  return client;
+}
+
+// === Helpers de sesión/DOM ===
+async function getStableSession(client, maxAttempts = 6, delayMs = 120) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const { data: { session } } = await client.auth.getSession();
+    if (session) return session;
+    await sleep(delayMs);
+  }
+  return null;
+}
+
+function safeAuthOk() {
+  // Llama a __AUTH_OK__ solo una vez
+  if (!document.body.classList.contains("auth-ready")) {
+    window.__AUTH_OK__?.();
+  }
+}
+
+function exposeClient(client) {
+  // Idempotente; algunos scripts esperan esto
+  window.supabaseClient = client;
+}
+
+function samePathAsCurrent(relOrAbs) {
+  try {
+    const u = new URL(relOrAbs, location.href);
+    return (u.pathname + u.search) === (location.pathname + location.search);
+  } catch { return false; }
+}
