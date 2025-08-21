@@ -107,6 +107,14 @@
             <option value="Consultes Externes">Consultes Externes</option>
           </select>
         </div>
+<div class="field">
+  <label for="filterKind" class="sr-only">Filtra per tipus</label>
+  <select id="filterKind" aria-label="Filtra per tipus">
+    <option value="tots">Tots els tipus</option>
+    <option value="cartell">Cartell</option>
+    <option value="protocol">Protocol</option>
+  </select>
+</div>
 
         <div class="field" style="flex:1 1 260px">
           <label for="filterText" class="sr-only">Cerca</label>
@@ -275,85 +283,101 @@
   </script>
 
   <!-- Filtres client (inclou estat revisió) -->
-  <script>
-    // Este bloque no depende de la sesión; actúa sobre el DOM cuando los items existan.
-    (function(){
-      const $  = (s, r=document)=>r.querySelector(s);
-      const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
-      const itemsUL = $("#items");
-      const svcSel  = $("#filterService");
-      const txtInp  = $("#filterText");
-      const revSel  = $("#filterReview");
-      const clrBtn  = $("#filterClear");
-      const countEl = $("#filterCount");
-      const monthsInp = $("#reviewMonths");
-      const aOk = $("#aOk"), aSoon = $("#aSoon"), aOver = $("#aOverdue");
+<script>
+  (function(){
+    const $  = (s, r=document)=>r.querySelector(s);
+    const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
 
-      const savedMonths = Number(localStorage.getItem("review.months") || 12);
-      monthsInp.value = Math.max(1, savedMonths);
-      document.documentElement.style.setProperty("--review-months", monthsInp.value);
+    const itemsUL   = $("#items");
+    const svcSel    = $("#filterService");
+    const kindSel   = $("#filterKind");          // <- NUEVO
+    const txtInp    = $("#filterText");
+    const revSel    = $("#filterReview");
+    const clrBtn    = $("#filterClear");
+    const countEl   = $("#filterCount");
+    const monthsInp = $("#reviewMonths");
 
-      monthsInp.addEventListener("change", ()=>{
-        const v = Math.max(1, Number(monthsInp.value||12));
-        localStorage.setItem("review.months", String(v));
-        document.dispatchEvent(new CustomEvent("reviewMonthsChanged", { detail: { months: v }}));
+    const aOk   = $("#aOk"),
+          aSoon = $("#aSoon"),
+          aOver = $("#aOverdue");
+
+    const savedMonths = Number(localStorage.getItem("review.months") || 12);
+    monthsInp.value = Math.max(1, savedMonths);
+    document.documentElement.style.setProperty("--review-months", monthsInp.value);
+
+    monthsInp.addEventListener("change", ()=>{
+      const v = Math.max(1, Number(monthsInp.value||12));
+      localStorage.setItem("review.months", String(v));
+      document.dispatchEvent(new CustomEvent("reviewMonthsChanged", { detail: { months: v }}));
+    });
+
+    const norm = s => (s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+
+    function getItemService(li){ return li.querySelector(".origin")?.value || ""; }
+    function getItemKind(li){ return li.querySelector(".kind")?.value || ""; }   // <- NUEVO
+    function getItemTextHaystack(li){
+      const t = li.querySelector(".title")?.value || "";
+      const c = li.querySelector(".code")?.value || "";
+      const tags = li.querySelector(".tags")?.value || "";
+      return norm([t,c,tags].join(" "));
+    }
+    function getReview(li){ return li.getAttribute("data-review") || "ok"; }
+
+    function applyFilters(){
+      const svc  = svcSel?.value  || "tots";
+      const kind = kindSel?.value || "tots";    // <- NUEVO
+      const q    = norm(txtInp?.value || "");
+      const rv   = revSel?.value || "all";
+
+      const lis = $$(".item", itemsUL);
+      let vis = 0, cOk=0, cSoon=0, cOver=0;
+
+      lis.forEach(li=>{
+        const itemSvc  = getItemService(li);
+        const itemKind = getItemKind(li);       // <- NUEVO
+        const hay      = getItemTextHaystack(li);
+        const r        = getReview(li);
+
+        if (r==="ok") cOk++; else if (r==="soon") cSoon++; else if (r==="overdue") cOver++;
+
+        const passSvc  = (svc  === "tots") || (itemSvc  === svc);
+        const passKind = (kind === "tots") || (itemKind === kind);   // <- NUEVO
+        const passTxt  = !q || hay.includes(q);
+        const passRev  = (rv === "all") || (r === rv);
+
+        const show = passSvc && passKind && passTxt && passRev;      // <- NUEVO
+        li.style.display = show ? "" : "none";
+        if (show) vis++;
       });
 
-      const norm = s => (s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
-      function getItemService(li){ return li.querySelector(".origin")?.value || ""; }
-      function getItemTextHaystack(li){
-        const t = li.querySelector(".title")?.value || "";
-        const c = li.querySelector(".code")?.value || "";
-        const tags = li.querySelector(".tags")?.value || "";
-        return norm([t,c,tags].join(" "));
-      }
-      function getReview(li){ return li.getAttribute("data-review") || "ok"; }
+      if (countEl) countEl.textContent = `${vis} visibles de ${lis.length}`;
+      if (aOk)   aOk.textContent   = `En termini: ${cOk}`;
+      if (aSoon) aSoon.textContent = `Propers (<30d): ${cSoon}`;
+      if (aOver) aOver.textContent = `Caducats: ${cOver}`;
+    }
 
-      function applyFilters(){
-        const svc = svcSel?.value || "tots";
-        const q   = norm(txtInp?.value || "");
-        const rv  = revSel?.value || "all";
-        const lis = $$(".item", itemsUL);
-        let vis = 0, cOk=0, cSoon=0, cOver=0;
+    const mo = new MutationObserver(()=> applyFilters());
+    mo.observe(itemsUL, { childList:true, subtree:true });
 
-        lis.forEach(li=>{
-          const itemSvc = getItemService(li);
-          const hay = getItemTextHaystack(li);
-          const r = getReview(li);
-          if (r==="ok") cOk++; else if (r==="soon") cSoon++; else if (r==="overdue") cOver++;
+    svcSel?.addEventListener("change", applyFilters);
+    kindSel?.addEventListener("change", applyFilters);  // <- NUEVO
+    txtInp?.addEventListener("input", applyFilters);
+    revSel?.addEventListener("change", applyFilters);
 
-          const passSvc = (svc === "tots") || (itemSvc === svc);
-          const passTxt = !q || hay.includes(q);
-          const passRev = (rv === "all") || (r === rv);
+    clrBtn?.addEventListener("click", ()=>{
+      if (svcSel)  svcSel.value  = "tots";
+      if (kindSel) kindSel.value = "tots";      // <- NUEVO
+      if (txtInp)  txtInp.value  = "";
+      if (revSel)  revSel.value  = "all";
+      applyFilters();
+    });
 
-          const show = passSvc && passTxt && passRev;
-          li.style.display = show ? "" : "none";
-          if (show) vis++;
-        });
+    document.addEventListener("change", (e)=>{
+      if (e.target && e.target.closest && e.target.closest("#items")) applyFilters();
+    });
 
-        countEl.textContent = `${vis} visibles de ${lis.length}`;
-        aOk.textContent   = `En termini: ${cOk}`;
-        aSoon.textContent = `Propers (<30d): ${cSoon}`;
-        aOver.textContent = `Caducats: ${cOver}`;
-      }
-
-      const mo = new MutationObserver(()=> applyFilters());
-      mo.observe(itemsUL, { childList:true, subtree:true });
-
-      svcSel?.addEventListener("change", applyFilters);
-      txtInp?.addEventListener("input", applyFilters);
-      revSel?.addEventListener("change", applyFilters);
-      clrBtn?.addEventListener("click", ()=>{
-        svcSel.value = "tots"; txtInp.value = ""; revSel.value = "all"; applyFilters();
-      });
-
-      document.addEventListener("change", (e)=>{
-        if (e.target && e.target.closest && e.target.closest("#items")) applyFilters();
-      });
-
-      window.addEventListener("load", applyFilters);
-      document.addEventListener("DOMContentLoaded", applyFilters);
-    })();
-  </script>
-</body>
+    window.addEventListener("load", applyFilters);
+    document.addEventListener("DOMContentLoaded", applyFilters);
+  })();
+</script></body>
 </html>
