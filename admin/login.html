@@ -5,6 +5,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Admin · Inici de sessió</title>
+
+  <!-- Shim per netejar headers no ASCII que trenquen fetch en alguns entorns -->
+  <script>
+    (function () {
+      const origFetch = window.fetch;
+      window.fetch = function(input, init) {
+        if (init && init.headers && !(init.headers instanceof Headers)) {
+          const cleaned = {};
+          for (const [k, v] of Object.entries(init.headers)) {
+            cleaned[k] = String(v).replace(/[^\x00-\x7F]/g, '?'); // només ASCII
+          }
+          init = { ...init, headers: cleaned };
+        }
+        return origFetch(input, init);
+      };
+    })();
+  </script>
+
   <style>
     :root{
       --bg:#0b1220; --panel:rgba(255,255,255,.03);
@@ -36,6 +54,7 @@
       padding:10px 12px; border-radius:10px;
       background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
       color:inherit; outline:none;
+      font-size:16px; /* evita zoom a iOS */
     }
     .btn{
       appearance:none; border:1px solid rgba(255,255,255,.18);
@@ -92,8 +111,10 @@
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    // Usa ENV_* si existeixen; si no, cauen als valors del projecte
     const SUPABASE_URL  = (window.ENV_SUPABASE_URL  || "https://wnkgzpgagprncbtqnzrw.supabase.co").trim();
-    const SUPABASE_ANON = (window.ENV_SUPABASE_ANON || "…").trim();
+    const SUPABASE_ANON = (window.ENV_SUPABASE_ANON || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indua2d6cGdhZ3BybmNidHFuenJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjQyNTQsImV4cCI6MjA3MDc0MDI1NH0.sXkV7N9Y2nDOTA3tZpWkAhs2SCGriXJWyieglxxFIRY").trim();
+
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
       auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
     });
@@ -119,8 +140,9 @@
         okEl.textContent = "Sessió iniciada!";
         const params = new URLSearchParams(location.search);
         const to = params.get("redirect") || "./index.html";
-        setTimeout(()=>location.replace(to), 200);
+        setTimeout(()=>location.replace(to), 150);
       } catch(e){
+        // Missatge més amable i curt
         msgEl.textContent = e?.message || "Error d’autenticació.";
       }
     });
