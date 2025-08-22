@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ca">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Restablir contrasenya</title>
+  <style>
+    html,body{background:#0b1220;color:#e8edf3;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    .wrap{max-width:520px;margin:8vh auto;padding:24px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.03);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    h1{margin:0 0 6px 0}
+    .muted{color:#9aa3ad}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    label{display:block;margin:12px 0 6px 0;font-weight:600}
+    input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e8edf3;border-radius:10px;padding:10px 12px;min-height:42px}
+    .btn{appearance:none;border:0;background:#4f8cff;color:#001428;font-weight:800;border-radius:10px;padding:10px 14px;cursor:pointer}
+    .btn.ghost{background:rgba(255,255,255,.08);color:#e8edf3;border:1px solid rgba(255,255,255,.18)}
+    .msg{margin-top:10px;font-size:14px}
+    .msg.err{color:#fca5a5}
+    .msg.ok{color:#86efac}
+    .foot{margin-top:10px}
+    a{color:#9ac2ff}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Restablir contrasenya</h1>
+    <p class="muted" id="step">Validant enllaç…</p>
+
+    <form id="form" style="display:none">
+      <label for="pw1">Nova contrasenya</label>
+      <input id="pw1" type="password" autocomplete="new-password" required placeholder="••••••••">
+
+      <label for="pw2">Repeteix la contrasenya</label>
+      <input id="pw2" type="password" autocomplete="new-password" required placeholder="••••••••">
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn" type="submit">Desa</button>
+        <a class="btn ghost" href="./login.html">Torna a l’inici de sessió</a>
+      </div>
+      <div class="msg err" id="msg"></div>
+      <div class="msg ok" id="ok"></div>
+    </form>
+
+    <div class="foot muted">© Dep. Innovació i Projectes</div>
+  </div>
+
+<script>
+(async () => {
+  const SUPABASE_URL  = (window.ENV_SUPABASE_URL  || "https://wnkgzpgagprncbtqnzrw.supabase.co").trim();
+  const SUPABASE_ANON = (window.ENV_SUPABASE_ANON || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indua2d6cGdhZ3BybmNidHFuenJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjQyNTQsImV4cCI6MjA3MDc0MDI1NH0.sXkV7N9Y2nDOTA3tZpWkAhs2SCGriXJWyieglxxFIRY").trim();
+  const supabase = window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+
+  const step = document.getElementById('step');
+  const form = document.getElementById('form');
+  const msg  = document.getElementById('msg');
+  const ok   = document.getElementById('ok');
+
+  function getHashParams() {
+    const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+    return {
+      type: h.get('type'),        // 'recovery'
+      code: h.get('code'),        // OOB code (PKCE)
+      access_token: h.get('access_token'),
+      refresh_token: h.get('refresh_token')
+    };
+  }
+
+  try {
+    if (!supabase) throw new Error('Client d’autenticació no disponible');
+
+    // 1) Intercanvia el codi del hash per una sessió (formats nous de Supabase)
+    const { type, code, access_token, refresh_token } = getHashParams();
+
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) throw error;
+    } else if (access_token && refresh_token) {
+      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+      if (error) throw error;
+    } else {
+      // Si no hi ha hash vàlid, igualment mostrem el formulari per reintentar
+      console.warn('No s’ha trobat codi al hash; potser has obert la pàgina directament.');
+    }
+
+    step.textContent = 'Introdueix una nova contrasenya';
+    form.style.display = '';
+
+    // 2) Enviar nova contrasenya
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault(); msg.textContent=''; ok.textContent='';
+      const p1 = document.getElementById('pw1').value;
+      const p2 = document.getElementById('pw2').value;
+      if (!p1 || p1 !== p2) { msg.textContent = 'Les contrasenyes no coincideixen.'; return; }
+
+      const { error } = await supabase.auth.updateUser({ password: p1 });
+      if (error) { msg.textContent = error.message || 'No s’ha pogut actualitzar.'; return; }
+
+      ok.textContent = 'Contrasenya actualitzada! Ara pots entrar.';
+      setTimeout(() => { location.href = './login.html'; }, 1200);
+    });
+
+  } catch (e) {
+    step.textContent = 'Error de validació';
+    msg.textContent = e?.message || 'No s’ha pogut validar l’enllaç.';
+  }
+})();
+</script>
+</body>
+</html>

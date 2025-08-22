@@ -1,146 +1,132 @@
+<!-- login.html -->
 <!DOCTYPE html>
 <html lang="ca">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Inici de sessió · Admin</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Admin · Inici de sessió</title>
   <style>
-    :root{ --bg:#0b1220; --card:#111a2b; --accent:#3aa4ff; --text:#e9f1ff; --muted:#94a3b8; }
-    *{box-sizing:border-box}
+    :root{
+      --bg:#0b1220; --panel:rgba(255,255,255,.03);
+      --line:rgba(255,255,255,.10); --muted:#94a3b8;
+      --text:#e8edf3; --primary:#3aa4ff;
+      --radius:14px;
+    }
     html,body{height:100%}
     body{
-      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-      color:var(--text); background:linear-gradient(180deg,#0b1220,#0d1628 40%,#0b1220);
-      display:grid; place-items:center; min-height:100svh; padding:16px;
+      margin:0; background:var(--bg); color:var(--text);
+      display:grid; place-items:center;
+      font-family: ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
     }
-    .card{ width:100%; max-width:420px; background:var(--card);
-      border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:20px;
-      box-shadow:0 10px 40px rgba(0,0,0,.35); }
-    h1{margin:0 0 14px 0; font-size:22px}
-    .muted{color:var(--muted); font-size:13px}
-    label{display:block; font-size:13px; color:var(--muted); margin:10px 0 6px}
-    input{ width:100%; background:rgba(255,255,255,.06); color:var(--text);
-      border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 12px; font-size:14px; }
-    .row{display:flex; gap:10px; align-items:center}
-    .btn{ display:inline-flex; justify-content:center; align-items:center; gap:8px;
-      padding:10px 14px; min-height:44px; border-radius:12px; font-weight:700;
-      border:1px solid rgba(255,255,255,.12); cursor:pointer; }
-    .btn-primary{ background:var(--accent); color:#001428; box-shadow:0 6px 18px rgba(58,164,255,.3) }
-    .btn-ghost{ background:rgba(255,255,255,.06); color:var(--text) }
-    .error{ margin-top:10px; color:#fca5a5; font-size:13px; min-height:1em }
-    .ok{ margin-top:10px; color:#86efac; font-size:13px; min-height:1em }
-    .footer{margin-top:14px; display:flex; justify-content:space-between; align-items:center}
-    .pw-wrap{ position:relative }
-    .toggle-pw{ position:absolute; right:8px; top:50%; transform:translateY(-50%);
-      background:transparent; border:none; color:var(--muted); cursor:pointer; font-size:13px; }
-    .brand{margin-bottom:8px; font-size:13px; color:var(--muted)}
-  </style>
+    *,*::before,*::after{ box-sizing:border-box; }
 
-  <!-- Supabase JS (CDN) -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    .card{
+      width:min(420px,92vw);
+      background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+      padding:22px 18px 18px; box-shadow:0 10px 30px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    h1{ margin:0 0 8px 0; font-size:20px }
+    .muted{ color:var(--muted); font-size:13px }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+    .field{ display:flex; flex-direction:column; gap:6px; margin-top:12px; width:100% }
+    label{ font-size:13px; color:var(--muted) }
+    .input{
+      width:100%; max-width:100%; min-width:0; display:block;
+      padding:10px 12px; border-radius:10px;
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+      color:inherit; outline:none;
+    }
+    .btn{
+      appearance:none; border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.06); color:inherit;
+      padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:700; font-size:14px;
+    }
+    .btn-primary{ background:var(--primary); color:#001428; border:none }
+    .btn-ghost{ background:transparent }
+    .msg{ margin-top:10px; font-size:13px }
+    .msg.error{ color:#fecaca }
+    .msg.ok{ color:#bbf7d0 }
+    .sep{ height:1px; background:var(--line); margin:14px 0 }
+    .footer{ display:flex; justify-content:space-between; gap:8px; align-items:center; margin-top:6px }
+    .small{ font-size:12px }
+  </style>
 </head>
 <body>
-  <div class="card" role="dialog" aria-labelledby="title">
-    <div class="brand">🏥 Hospital · Àrea d’administració</div>
-    <h1 id="title">Inici de sessió</h1>
-    <div class="muted">Accés restringit. Introdueix el teu email i contrasenya.</div>
+  <main class="card">
+    <h1>🔐 Inici de sessió Cartells i protocols BSA</h1>
+    <div class="muted">Accés a l’administració</div>
 
-    <form id="loginForm" autocomplete="on" style="margin-top:12px">
-      <label for="email">Email</label>
-      <input id="email" name="email" type="email" inputmode="email" autocomplete="username" required placeholder="usuari@hospital.cat"/>
+    <form id="loginForm" autocomplete="on">
+      <div class="field">
+        <label for="email">Correu electrònic</label>
+        <input id="email" name="email" class="input" type="email" placeholder="usuari@exemple.cat" required />
+      </div>
 
-      <label for="password">Contrasenya</label>
-      <div class="pw-wrap">
-        <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="********"/>
-        <button type="button" class="toggle-pw" tabindex="-1" aria-label="Mostra/oculta"
-          onclick="const p=document.getElementById('password'); p.type=p.type==='password'?'text':'password'">👁</button>
+      <div class="field">
+        <label for="password">Contrasenya</label>
+        <input id="password" name="password" class="input" type="password" placeholder="********" required />
       </div>
 
       <div class="row" style="margin-top:14px">
         <button id="btnLogin" class="btn btn-primary" type="submit">Entrar</button>
         <button id="btnClear" class="btn btn-ghost" type="button">Neteja</button>
       </div>
-
-      <div id="msg" class="error" role="status" aria-live="polite"></div>
-      <div id="ok" class="ok" role="status" aria-live="polite"></div>
-
-      <div class="footer">
-        <a class="muted" href="../index.html">← Tornar al monitor</a>
-        <span class="muted">v0.3</span>
-      </div>
     </form>
-  </div>
 
+    <!-- Missatge en lloc de recuperar contrasenya -->
+    <div class="sep"></div>
+    <div class="msg muted">
+      En cas de requerir un canvi de contrasenya, posa’t en contacte amb l’<b>equip d’Innovació de BSA</b>.
+    </div>
+
+    <div id="msg" class="msg error" role="alert" aria-live="polite"></div>
+    <div id="ok"  class="msg ok"    role="status" aria-live="polite"></div>
+
+    <div class="footer">
+      <span class="small muted">© Dep. Innovació i Projectes</span>
+      <a class="small muted" href="../index.html">← Tornar</a>
+    </div>
+  </main>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // === Config Supabase ===
-    const SUPABASE_URL = "https://wnkgzpgagprncbtqnzrw.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indua2d6cGdhZ3BybmNidHFuenJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjQyNTQsImV4cCI6MjA3MDc0MDI1NH0.sXkV7N9Y2nDOTA3tZpWkAhs2SCGriXJWyieglxxFIRY";
-
-    // Reutiliza un único cliente global para toda la zona admin
-    const supabase = (window.supabaseClient) ? window.supabaseClient
-      : (window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-          auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            detectSessionInUrl: true
-          }
-        }));
-
-    // Redirección segura (solo rutas relativas del mismo origen)
-    function getSafeRedirect() {
-      const p = new URLSearchParams(location.search).get('redirect') || './index.html';
-      try {
-        // permitir "./...", "subdir/..." o "/admin/..."
-        if (p.startsWith('/') && !p.startsWith('//')) return p;
-        if (p.startsWith('./') || /^[A-Za-z0-9._\-\/]+$/.test(p)) return p;
-      } catch {}
-      return './index.html';
-    }
-
-    // Si ya hay sesión activa -> ir a redirect
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        location.replace(getSafeRedirect());
-      }
-    })();
+    const SUPABASE_URL  = (window.ENV_SUPABASE_URL  || "https://wnkgzpgagprncbtqnzrw.supabase.co").trim();
+    const SUPABASE_ANON = (window.ENV_SUPABASE_ANON || "…").trim();
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+      auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+    });
 
     const form = document.getElementById('loginForm');
-    const btnLogin = document.getElementById('btnLogin');
-    const btnClear = document.getElementById('btnClear');
-    const msg = document.getElementById('msg');
-    const ok = document.getElementById('ok');
+    const emailEl = document.getElementById('email');
+    const passEl  = document.getElementById('password');
+    const msgEl = document.getElementById('msg');
+    const okEl  = document.getElementById('ok');
 
-    btnClear.addEventListener('click', () => {
-      form.reset(); msg.textContent = ""; ok.textContent = "";
-    });
+    const clearMsgs = () => { msgEl.textContent=""; okEl.textContent=""; };
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      msg.textContent = ""; ok.textContent = "";
-      btnLogin.disabled = true; btnLogin.textContent = "Entrant…";
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      clearMsgs();
+      const email = (emailEl.value||"").trim();
+      const password = passEl.value||"";
+      if (!email || !password){ msgEl.textContent="Omple el correu i la contrasenya."; return; }
 
-      const email = (document.getElementById('email').value || "").trim();
-      const password = document.getElementById('password').value || "";
-
-      try {
+      try{
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-
-        ok.textContent = "Sessió iniciada. Redirigint…";
-        // Evita bucles en el historial
-        location.replace(getSafeRedirect());
-      } catch (err) {
-        msg.textContent = err?.message || "No s'ha pogut iniciar sessió.";
-      } finally {
-        btnLogin.disabled = false; btnLogin.textContent = "Entrar";
+        okEl.textContent = "Sessió iniciada!";
+        const params = new URLSearchParams(location.search);
+        const to = params.get("redirect") || "./index.html";
+        setTimeout(()=>location.replace(to), 200);
+      } catch(e){
+        msgEl.textContent = e?.message || "Error d’autenticació.";
       }
     });
 
-    // Si en algún momento cambia la sesión a "SIGNED_IN" aquí, redirige
-    supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) location.replace(getSafeRedirect());
+    document.getElementById('btnClear').addEventListener('click', () => {
+      emailEl.value=""; passEl.value=""; clearMsgs(); emailEl.focus();
     });
   </script>
 </body>
