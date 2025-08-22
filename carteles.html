@@ -109,6 +109,95 @@
       .hdr-center{ justify-content:space-between }
       .caption h3{ max-width:60vw }
     }
+/* ——— Ajustes mobile-first y pequeños refinamientos ——— */
+
+/* Safe areas para iOS (notch) */
+.app {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Header: en móvil, los controles a 100% y en filas */
+@media (max-width: 680px){
+  header.header{
+    grid-template-columns: 1fr;
+    row-gap: 8px;
+  }
+  .hdr-left, .hdr-center, .hdr-right{ justify-self:stretch }
+  .hdr-left h1{
+    font-size: clamp(16px, 5vw, 20px);
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
+  /* Pila ordenada: servicio, tipo, buscador */
+  .hdr-center{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .service-select,
+  .type-select,
+  .search-input{
+    width: 100%;
+    min-height: max(var(--tap-min), 44px);
+  }
+
+  /* Botón “volver” a bloque y más cómodo de pulsar */
+  .hdr-right .link-btn{
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 12px 14px;
+  }
+
+  /* Título en caption más corto; evita desbordes */
+  .caption h3{
+    max-width: 100%;
+    font-size: clamp(15px, 4.2vw, 18px);
+  }
+}
+
+/* Swiper: botones más hacia dentro y con área táctil mayor en móvil */
+@media (max-width: 480px){
+  .swiper-button-prev, .swiper-button-next{
+    width: 44px; height: 44px;
+    border-radius: 999px;
+    background: rgba(0,0,0,.5);
+    border: 1px solid rgba(255,255,255,.3);
+    /* sombra sutil para separarlos del contenido */
+    box-shadow: 0 4px 20px rgba(0,0,0,.35);
+  }
+  .swiper-button-prev{ left: 6px }
+  .swiper-button-next{ right: 6px }
+  .swiper .swiper-pagination{ bottom: 4px !important; }
+}
+
+/* En apaisado de móvil (alto bajo), ganamos espacio al visor */
+@media (max-height: 520px){
+  .caption{ padding: 6px 10px; gap: 8px; }
+  .swiper-slide{ padding-bottom: 18px; }
+}
+
+/* Evita que el buscador en iOS haga zoom por tamaños de fuente pequeños */
+input[type="search"]{
+  font-size: 16px;
+}
+
+/* Hover/active accesibles también en táctil */
+.link-btn:active,
+.swiper-button-prev:active,
+.swiper-button-next:active{
+  transform: scale(0.98);
+  transition: transform .08s ease;
+}
+
+/* Cuando hay 1 sola slide, oculta navegación visible */
+.swiper.single .swiper-button-prev,
+.swiper.single .swiper-button-next,
+.swiper.single .swiper-pagination{
+  display: none !important;
+}
   </style>
 </head>
 <body>
